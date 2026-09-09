@@ -14,9 +14,10 @@ placeholder.
 | `apps/web` — Next.js 16                       | runs, renders a placeholder page                          |
 | `apps/mobile` — Expo SDK 57 dev build         | builds and runs on the iOS simulator                      |
 | `packages/shared` — design tokens, brand mark | done                                                      |
-| Documentation                                 | README, CONTRIBUTING, CLAUDE.md, decisions ×15, design.md |
+| Documentation                                 | README, CONTRIBUTING, CLAUDE.md, decisions ×23, design.md |
 | **Database**                                  | **not started**                                           |
-| Auth, PostHog, place resolution               | not started                                               |
+| Google Maps link parsing                      | done, tested against real links                           |
+| Auth, PostHog, geocoding, share extension     | not started                                               |
 
 ## Running it
 
@@ -48,7 +49,7 @@ them by downgrading Expo from 57 to 46.
 ## What is decided
 
 Read [`decisions.md`](decisions.md) before proposing an architectural change —
-fifteen decisions are recorded there with their rejected alternatives, so you
+twenty-three decisions are recorded there with their rejected alternatives, so you
 can see what was already considered and why it lost.
 
 [`design.md`](design.md) has the visual system. The values live in
@@ -66,26 +67,20 @@ Highlights that catch people out:
 - **Green is never small text on a light background.** See the contrast rule in
   `tokens.ts`.
 
-## Next, roughly in order
+## Next
 
-1. **Database.** Sketched but nothing written. Tables are `profiles`, `places`,
-   `saved_spots`, `lists`, `list_items`. The cap is
-   `position smallint check (position between 1 and 5)` plus
-   `unique (list_id, position)`, so the table physically cannot hold a sixth
-   row. **Open question, deliberately deferred:** whether the short note and
-   long description belong on `saved_spots`, on `list_items`, or both with an
-   override. Decide this with Charley before writing the migration.
-2. **CI check that fails the build if any table in `public` lacks RLS.**
-   Agreed, not yet written.
-3. **Wire Supabase and PostHog** in both apps, with env validation. No
-   hardcoded keys, publishable or otherwise — this repository is public.
-4. **Apple sign-in.** Open sub-decision: where the session is stored on device.
-   `expo-secure-store` uses the Keychain but caps values at 2048 bytes, which
-   JWT sessions can exceed; AsyncStorage has no cap but writes plaintext. This
-   is a security decision, so raise it explicitly.
-5. **Place resolution** — a Supabase Edge Function that follows a pasted Google
-   Maps shortlink and extracts name and coordinates server-side.
-6. **The list page**, built from the design in `design.md`.
+The ordered task list lives in [`todo.md`](todo.md). The database is the next
+thing to write; everything else is blocked on it.
+
+Two entries in the old plan have since been overturned by evidence, so if you
+remember them differently, read the decisions rather than trusting memory:
+
+- **Place resolution is not a server-side Edge Function** (decision 17). Google
+  rate-limits it, an EU IP hits a consent wall, and `robots.txt` disallows it.
+  The device reads the redirect header instead.
+- **Google does not give us coordinates on iOS** (decision 18). Nine real
+  links, four countries, zero coordinates. `MKLocalSearch` on the parsed postal
+  address is the primary source; Google's pin is the lucky case.
 
 ## Known loose ends
 
@@ -96,3 +91,8 @@ Highlights that catch people out:
   brand, not a destination; anything screenshotted and forwarded is a dead end.
 - Type scale has not been checked on a real device in daylight.
 - Nothing has been deployed. No Vercel project, no Supabase project.
+- `@types/node` is declared in `packages/shared` at `^20.19.43`, which is what
+  npm had already hoisted. `engines` requires Node 22, so bump it to `^22`
+  next time someone runs an install — types only, no runtime effect.
+- The full `npm run typecheck --workspaces` needs network on first run, because
+  the web app downloads `@next/swc`. `packages/shared` typechecks standalone.

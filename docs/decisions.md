@@ -4,6 +4,35 @@ Every architectural decision, why it was made, and what was rejected. Append
 new entries at the bottom; do not rewrite history. If a decision is reversed,
 add a new entry that supersedes the old one rather than editing it.
 
+## Index
+
+| #   | Decision                                         | Status                  |
+| --- | ------------------------------------------------ | ----------------------- |
+| 1   | Monorepo, not two repositories                   |                         |
+| 2   | npm workspaces, not pnpm                         |                         |
+| 3   | No task runner                                   |                         |
+| 4   | Places come from pasted Google Maps links        | partly superseded by 17 |
+| 5   | Shared by link; no friend graph in the MVP       |                         |
+| 6   | Public pages are a separate Next.js app          |                         |
+| 7   | Five spots per list, enforced by the database    |                         |
+| 8   | Apple sign-in only at launch                     | partly superseded by 16 |
+| 9   | PostHog for analytics, errors and logs — EU      |                         |
+| 10  | Supabase migrations are the only source of truth |                         |
+| 11  | CI fails if any table lacks row-level security   | extended by 22          |
+| 12  | Two npm audit advisories accepted, not patched   |                         |
+| 13  | Development builds, not Expo Go                  |                         |
+| 14  | Visual direction: precise and modern             |                         |
+| 15  | List position is a slot, not a ranking           | open item closed by 20  |
+| 16  | Anonymous sign-in at launch, Apple follows       |                         |
+| 17  | Short links expanded on device, never server     |                         |
+| 18  | Coordinates come from MapKit, not Google         |                         |
+| 19  | No shared `places` table                         |                         |
+| 20  | Note and description live on `saved_spots`       |                         |
+| 21  | Capture is a burst; editing is a separate pass   |                         |
+| 22  | `anon` has no table access; one public function  |                         |
+| 23  | The stored shape is source-neutral               |                         |
+| 24  | Supabase session stored in AsyncStorage          | closes open item in 8   |
+
 ---
 
 ## 1. Monorepo, not two repositories
@@ -72,6 +101,8 @@ servers) but not yet worth the moving part. Revisit when CI gets slow.
 ---
 
 ## 4. Places come from pasted Google Maps links
+
+> **Partly superseded by decision 17.** Resolution is not server-side.
 
 **Decision.** A spot is added by pasting a Google Maps URL, resolved
 server-side into a name, coordinates and the original link.
@@ -146,6 +177,8 @@ change, not a migration — hence `pinned_at` on the lists table.
 ---
 
 ## 8. Apple sign-in only at launch
+
+> **Partly superseded by decision 16.** Anonymous sign-in ships first.
 
 **Decision.** Sign in with Apple, iOS first. Google and Android later.
 
@@ -346,3 +379,238 @@ good for sharing, but not worth the friction before there are any users.
 description belong on `saved_spots` (write once, appears everywhere) or on
 `list_items` (different words per list), or both with an override. Raised, not
 urgent, decided later.
+
+---
+
+## 16. Anonymous sign-in at launch; Apple sign-in follows
+
+**Partly supersedes decision 8.**
+
+**Decision.** The device silently gets a Supabase _anonymous_ user on first
+launch. Apple is added later with `linkIdentity()` on the same user id.
+
+**Why.** No signup wall at the moment of highest intent, and no migration ever:
+RLS is written once against `auth.uid()` and the anonymous row simply becomes
+the Apple row.
+
+**Rejected.** Local-only storage until signup (two data models, a migration to
+write later). A client-generated owner UUID (RLS could not use `auth.uid()`, so
+the security boundary would rest on a value from a client we assume is
+hostile).
+
+**No cap on lists for anonymous users.** Decision 7's reasoning does not change
+based on whether someone signed in.
+
+---
+
+## 17. Short links are expanded on the device, never on our servers
+
+**Supersedes "resolved server-side" in decision 4.** The rest of 4 stands.
+
+**Decision.** The app follows the `maps.app.goo.gl` redirect itself and reads
+the `Location` header. The page is never loaded.
+
+**Why.** Measured 2026-09-09: from a datacentre IP Google rate-limits after
+roughly two requests; from an EU IP with no cookies the chain lands on
+`consent.google.com`; and `robots.txt` disallows automated fetching of those
+links. Edge Functions share egress IPs, so a server starts from the worst
+position on all three. Eight sequential expansions from a residential
+connection returned `302` with no throttling. Reading only the header means
+nothing Google renders is ever fetched, so consent is never reached.
+
+**Gotcha.** React Native's `fetch` on iOS ignores `redirect: 'manual'` and
+would follow through to the consent page. Reading the header needs `URLSession`
+with a delegate returning `nil` from `willPerformHTTPRedirection` — a small
+native module. Not prototypable in JavaScript.
+
+---
+
+## 18. Coordinates come from MapKit, not from Google
+
+**Decision.** `MKLocalSearch` on the parsed name and postal address is the
+primary source of coordinates. Google's pin is used when a link happens to have
+one.
+
+**Why.** Nine real links shared from iOS Google Maps, four countries, both the
+Share and Copy paths: **none contained a coordinate.** They carry name, full
+street address and a feature id:
+
+```
+maps.google.com/?q=Bar+Isabel,+797+College+St,+Toronto,+ON+M6G+1C7
+               &ftid=0x882b34f724906a25:0x7b97293d105c2f1&entry=gps
+```
+
+Only desktop-browser URLs carry `!3d`/`!4d` pins. A full street address with a
+house number is close to ideal geocoder input, and `MKLocalSearch` is free,
+keyless and already on the device. A side benefit: when the pin is Apple's, no
+Google-derived coordinate is stored at all.
+
+**Rejected.** Google Geocoding API (billed and keyed — every fork would need an
+account). Nominatim/OSM (thin POI coverage for exactly the small bars this
+product is about).
+
+**Consequence.** `lat`/`lng` are nullable permanently. A spot without
+coordinates is publishable; the map just does not render in its expanded row.
+
+**Watch.** All nine samples came from one device on Maps 26.33.1. Keep the
+coordinate shape supported.
+
+---
+
+## 19. No shared `places` table
+
+**Decision.** Every row belongs to exactly one user. A place saved by a hundred
+people is a hundred rows.
+
+**Why.** A shared table was drafted and removed. Every problem it created was a
+problem it also caused: who may write to it, whether one user's paste can
+change another user's spot, and how to read it without making the whole dataset
+enumerable to any signed-in account. Duplication costs a few hundred bytes.
+
+**Rejected.** Canonical `places` + per-user `saved_spots` — deduplicates
+resolution and allows a global refresh, but we had already decided refresh
+would be deliberate rather than automatic.
+
+**Reversible in one migration.** `place_ref` is on every row, so
+`insert into places select distinct on (place_ref) …` backfills a canonical
+table if usage ever justifies one. "Who else saved this" is a `group by` on the
+same column — the derived graph decision 5 anticipated.
+
+---
+
+## 20. The note and the description live on `saved_spots`
+
+**Closes the item decision 15 deferred.**
+
+**Decision.** Both note fields are columns on `saved_spots`. `list_items`
+carries only `list_id`, `saved_spot_id`, `user_id` and `position`.
+
+**Why.** Write once, appears on every list the spot is on. One place to look
+when the words are wrong.
+
+**Rejected.** On `list_items` — nicer (different words per list) but means
+retyping a note every time you reuse a spot. Both with an override — flexible,
+two places to look, no evidence anyone wants it. Adding the override later is
+one nullable column.
+
+---
+
+## 21. Capture is a burst; editing is a separate pass
+
+**Decision.** A spot is inserted as soon as its link parses, with `title`
+seeded from Google's name and the notes empty. Coordinates patch the row when
+they resolve. No modal, no confirmation step, nothing steals focus.
+
+**Why.** The real behaviour is copying five links while thinking about a city,
+then sitting down later to write about them. Asking for a note at paste time
+interrupts the burst five times.
+
+**What follows, and is not optional.** Two writes per spot (insert on parse,
+patch on geocode) — one write means the row cannot appear until the network
+does. `title not null`, seeded from the parsed name, always editable (one
+fixture place is genuinely called "4850"). "Needs a note" is derived from
+`short_note is null`, not a column. Duplicate pastes are expected and handled
+as "already in your library" via `unique (user_id, place_ref)`; all nine real
+links carry a CID, so it works on the real path.
+
+**v0 is paste. The share extension is v1.** Sharing from inside Maps removes an
+app switch and a system clipboard banner per spot, which matters a lot in a
+five-spot burst — but it is native surface area (config plugin, App Group) and
+does not block a first build.
+
+**Offline capture is refused.** A spot cannot exist without a parsed link, so
+the app requires connectivity to add one and says so. No pending rows, no
+retry queue, no nullable title. Rejected: storing the short URL and resolving
+later — friendlier for someone planning a trip on a plane, but it puts a row
+in the database that is not yet a spot, and every screen then has to render a
+state that only exists because of a network condition.
+
+**Two failure messages, not one.** They have different fixes: _"You need to be
+online to add a spot"_ when there is no connection, and _"That link didn't
+work — try copying it again from Maps"_ when the expansion or the parse fails.
+A single generic error tells the user nothing about what to do next.
+
+---
+
+## 22. `anon` has no table access; one function is the entire public surface
+
+**Decision.** RLS on every table, all privileges revoked from `anon`,
+authenticated policies scoped to `auth.uid() = user_id`. The public page reads
+through one `security definer` function, `get_list_by_slug(slug text)`, with
+`search_path = ''`.
+
+**Why.** "Unlisted by URL" (decision 5) is only true if the URL is the only way
+in. The natural-looking policy — `select using (published_at is not null)` —
+breaks it: the publishable key ships in the app bundle and the web page's
+JavaScript, so anyone can read it from a network tab and then enumerate every
+published list from every user in one request. A function taking an exact slug
+has no query shape that returns two rows.
+
+**Rejected.** The web app reading with the service role key — it is
+server-rendered so it would work, but that key bypasses RLS entirely and one
+careless line would leak everything rather than one list.
+
+**The defaults are hostile**, so this is explicit: Supabase grants `anon`
+privileges on new tables in `public`, and RLS is off by default for tables
+created in SQL. Privileges are revoked as well as policied, so a future mistake
+that disables RLS is not a breach on its own.
+
+**CI asserts three things** (extending decision 11): every `public` table has
+RLS; no `public` table grants anything to `anon`; the set of functions `anon`
+may execute is exactly `{get_list_by_slug}`. Default privileges cover functions
+too.
+
+---
+
+## 23. The stored shape is source-neutral
+
+**Decision.** No column named after Google. `place_ref`, `place_ref_type`
+(`text` + check, not an enum), `source_url`, `title`, `address`, `lat`, `lng`.
+
+**Why.** The fields a spot needs are the same whatever produced them, so
+generic names cost nothing now and avoid a rename later. Google stays the main
+source — it is the behaviour being replaced (decision 4).
+
+**Deliberately not built.** No provider interface or resolver registry. There
+is one parser and the type it returns _is_ the abstraction. A second source is
+a second function, not a framework. `text` + check because adding a value to a
+Postgres enum is a migration people get wrong.
+
+**Most valuable future importer: Google Takeout**, which exports saved places
+as structured data and would solve cold start. Importing into the library does
+not touch the five-spot cap, which applies to lists.
+
+---
+
+## 24. The Supabase session is stored in AsyncStorage
+
+**Closes the sub-decision left open in decision 8.**
+
+**Decision.** The session goes in AsyncStorage, as Supabase's own React Native
+documentation prescribes.
+
+**Why.** It is the documented, well-trodden path, which is decision-making rule
+1: when something breaks at 11pm, the number of other people who have hit the
+same error matters more than elegance. The alternative — splitting the session
+across several Keychain entries, or holding the access token in memory and only
+the refresh token in `expo-secure-store` — is custom code in the authentication
+path, which is the most expensive place in an app to have a bug, in defence of
+a threat model that does not really apply to a list of restaurant
+recommendations.
+
+**Rejected.** `expo-secure-store` alone: it is the safer store (Keychain,
+hardware-backed, tied to the passcode) but it refuses values over 2048 bytes,
+and a Supabase session is a JSON blob that can exceed that as JWT claims grow.
+That failure arrives later, in production, and looks like a random logout.
+
+**What is being accepted, stated plainly.** The session is a bearer token —
+whoever holds it is that user. In AsyncStorage it is an unencrypted file inside
+the app's sandbox. In practice iOS still protects it: the filesystem is
+encrypted, and the default data protection class keeps the file unreadable
+until the device's first unlock after boot. No other app can read it on a
+device that is not jailbroken. The realistic exposure is an **unencrypted local
+backup** (Finder/iTunes without "Encrypt local backup" ticked) or forensic
+access to an unlocked device.
+
+**Revisit** if the app ever stores something genuinely sensitive. A library of
+places someone likes is not that.
