@@ -83,6 +83,21 @@ Rows expand to reveal a longer description and a map.
 - On the web the same effect needs no JavaScript: `grid-template-rows: 0fr ->
 1fr` animates a height-auto disclosure, with `@starting-style` for entry.
 
+## The app
+
+Mockups: **Real Rex App Screens**, a canvas in Charley's Claude artifacts.
+Settled there (decision 25): home echoes the list's row; the five-arc
+**segmented ring** replaces the numeral on home and is the only place the cap
+is drawn; one bold element per screen; the copy-link button appears only on
+sent lists, so its presence is what marks a list published.
+
+Brand line: **Recommend your best. Forget the rest.** Use it once — first open,
+the store listing, the page footer. Repeated in-product it stops being
+confident and becomes a slogan.
+
+Note the numeral on the list page stays **bare**. Ringing it there was tried
+and reverted; rings are a home-screen element.
+
 ## Still open
 
 - Simplified small-size variant of the mark (favicon, 20-32px).

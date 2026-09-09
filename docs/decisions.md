@@ -6,32 +6,33 @@ add a new entry that supersedes the old one rather than editing it.
 
 ## Index
 
-| #   | Decision                                         | Status                  |
-| --- | ------------------------------------------------ | ----------------------- |
-| 1   | Monorepo, not two repositories                   |                         |
-| 2   | npm workspaces, not pnpm                         |                         |
-| 3   | No task runner                                   |                         |
-| 4   | Places come from pasted Google Maps links        | partly superseded by 17 |
-| 5   | Shared by link; no friend graph in the MVP       |                         |
-| 6   | Public pages are a separate Next.js app          |                         |
-| 7   | Five spots per list, enforced by the database    |                         |
-| 8   | Apple sign-in only at launch                     | partly superseded by 16 |
-| 9   | PostHog for analytics, errors and logs — EU      |                         |
-| 10  | Supabase migrations are the only source of truth |                         |
-| 11  | CI fails if any table lacks row-level security   | extended by 22          |
-| 12  | Two npm audit advisories accepted, not patched   |                         |
-| 13  | Development builds, not Expo Go                  |                         |
-| 14  | Visual direction: precise and modern             |                         |
-| 15  | List position is a slot, not a ranking           | open item closed by 20  |
-| 16  | Anonymous sign-in at launch, Apple follows       |                         |
-| 17  | Short links expanded on device, never server     |                         |
-| 18  | Coordinates come from MapKit, not Google         |                         |
-| 19  | No shared `places` table                         |                         |
-| 20  | Note and description live on `saved_spots`       |                         |
-| 21  | Capture is a burst; editing is a separate pass   |                         |
-| 22  | `anon` has no table access; one public function  |                         |
-| 23  | The stored shape is source-neutral               |                         |
-| 24  | Supabase session stored in AsyncStorage          | closes open item in 8   |
+| #   | Decision                                            | Status                  |
+| --- | --------------------------------------------------- | ----------------------- |
+| 1   | Monorepo, not two repositories                      |                         |
+| 2   | npm workspaces, not pnpm                            |                         |
+| 3   | No task runner                                      |                         |
+| 4   | Places come from pasted Google Maps links           | partly superseded by 17 |
+| 5   | Shared by link; no friend graph in the MVP          |                         |
+| 6   | Public pages are a separate Next.js app             |                         |
+| 7   | Five spots per list, enforced by the database       |                         |
+| 8   | Apple sign-in only at launch                        | partly superseded by 16 |
+| 9   | PostHog for analytics, errors and logs — EU         |                         |
+| 10  | Supabase migrations are the only source of truth    |                         |
+| 11  | CI fails if any table lacks row-level security      | extended by 22          |
+| 12  | Two npm audit advisories accepted, not patched      |                         |
+| 13  | Development builds, not Expo Go                     |                         |
+| 14  | Visual direction: precise and modern                |                         |
+| 15  | List position is a slot, not a ranking              | open item closed by 20  |
+| 16  | Anonymous sign-in at launch, Apple follows          |                         |
+| 17  | Short links expanded on device, never server        |                         |
+| 18  | Coordinates come from MapKit, not Google            |                         |
+| 19  | No shared `places` table                            |                         |
+| 20  | Note and description live on `saved_spots`          |                         |
+| 21  | Capture is a burst; editing is a separate pass      |                         |
+| 22  | `anon` has no table access; one public function     |                         |
+| 23  | The stored shape is source-neutral                  |                         |
+| 24  | Supabase session stored in AsyncStorage             | closes open item in 8   |
+| 25  | App screens echo the list; the ring carries the cap |                         |
 
 ---
 
@@ -614,3 +615,50 @@ access to an unlocked device.
 
 **Revisit** if the app ever stores something genuinely sensitive. A library of
 places someone likes is not that.
+
+---
+
+## 25. The app screens echo the list; the ring carries the cap
+
+**Decision.** The public list page is the fixed point of the visual system.
+Every other screen borrows its row — large green numeral, name, one line
+underneath — rather than inventing a layout. On the home screen the numeral is
+replaced by a **segmented ring**: five arcs, filled as the list fills.
+
+**Why.** Nine home-screen directions were drawn and discarded before it became
+clear the problem was ordering, not taste: the list itself had never been
+designed, so home had nothing to echo and each attempt invented a new language.
+Once the list existed, home was a small edit rather than a new idea.
+
+The ring earns its place because it makes the product's one rule visible
+without writing it down. A full list closes into a complete emerald circle, so
+"finished" is a shape rather than a badge, and the cap is felt on the home
+screen before anyone reads a number.
+
+**Rejected, and worth recording so they are not tried again.** Showing a list's
+spots on the home screen (reveals the contents without a tap, and the row
+becomes a run-on line). Three variations of one row layout. **Growing the
+palette**: five hues derived from emerald in oklch, one per list, tried and
+discarded — green on the numerals is the colour, which is what `design.md` said
+before we went looking.
+
+**Follows from it:**
+
+- Exactly one bold element per screen: the page headline. Row names are medium
+  weight. A column of bold names reads as a list of headings, not a list of
+  places.
+- **The copy-link button appears only on lists that have been sent.** A draft
+  has no link, so it has no button — which means the button's presence is what
+  marks a list published. No badge, no `DRAFT` label doing the same job twice.
+- The numeral in `design.md` stays bare on the list page. Ringing it there was
+  tried and reverted; the ring belongs to home only.
+
+**Open.** The builder exists in two shapes — editing the list itself with the
+empty slots drawn in, or picking from the library against a progress ring — and
+they disagree about when `position` is assigned: at insert, or on save. That is
+a schema question, so decide it before the migration.
+
+**The sixth tap.** Adding a spot to a full list is not an error and not a
+disabled row. It asks which of the five the new one replaces, with the ring
+closed behind it and an always-present way out. Decision 7 says the cap is the
+product; this is where a user meets it.
