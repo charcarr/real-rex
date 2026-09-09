@@ -9,7 +9,8 @@
     "android": "expo run:android",
     "prebuild": "expo prebuild --clean",
     "typecheck": "tsc --noEmit",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "test": "node --disable-warning=ExperimentalWarning --experimental-strip-types --test src/*.test.ts"
   },
   "dependencies": {
     "expo": "~57.0.21",

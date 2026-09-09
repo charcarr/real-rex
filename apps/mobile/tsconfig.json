@@ -5,7 +5,14 @@
     "lib": ["ES2022", "DOM"],
     "paths": {
       "@/*": ["./src/*"]
-    }
+    },
+    // Node's test runner executes the .ts test files directly and requires the
+    // extension in the import specifier. Safe because this app never emits.
+    "allowImportingTsExtensions": true,
+    // Expo's base config does not pick up the hoisted @types/node, so the
+    // ambient type packages are named explicitly. If you add another one,
+    // add it here too - naming any of them turns auto-discovery off.
+    "types": ["node", "react", "expo"]
   },
   "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
   "exclude": ["node_modules"]
