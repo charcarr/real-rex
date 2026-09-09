@@ -450,6 +450,22 @@ Google-derived coordinate is stored at all.
 account). Nominatim/OSM (thin POI coverage for exactly the small bars this
 product is about).
 
+**Measured, not assumed** (2026-09-09, `scripts/geocode-test.swift`). All nine
+real addresses resolved: **9/9 found**, and the one case where we hold Google's
+own pin — Bar But — came back **4 metres away**. Three matched under a
+different name, and one of those matters: `Royal China (Baker Street)` resolved
+as `24-26 Baker Street`, an address-level match rather than a POI. The
+coordinate is still the right building, so it is usable, but it shows
+`MKLocalSearch` will silently fall back from finding a business to geocoding
+its street address.
+
+**So the title is always Google's, never MapKit's.** `item.name` is not
+allowed to overwrite it, or a list starts calling a restaurant "24-26 Baker
+Street". A sharp divergence between the name we searched for and the name that
+came back is the cheapest available signal that the pin is a building rather
+than the place — worth using if a "check this pin" nudge is ever wanted, and
+worth ignoring until then.
+
 **Consequence.** `lat`/`lng` are nullable permanently. A spot without
 coordinates is publishable; the map just does not render in its expanded row.
 
