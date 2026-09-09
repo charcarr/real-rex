@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+
+    // Strictness. These are deliberately aggressive: it is much cheaper to
+    // satisfy the compiler now than to debug an undefined at runtime later.
+    "strict": true,
+    // Makes `arr[0]` typed `T | undefined`. Catches a whole class of bug that
+    // plain `strict` misses.
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "exclude": ["node_modules", "dist", ".next", ".expo"]
+}

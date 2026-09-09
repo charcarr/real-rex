@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel superseded runs on the same branch — nobody needs results for a
+# commit that has already been replaced.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Format, lint, typecheck, build
+    runs-on: ubuntu-latest
+
+    # Placeholders only. Real values live in Vercel. These exist so that
+    # `next typegen` and `next build` can load next.config without failing on
+    # missing environment variables. Never put a real key here.
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: build-placeholder
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # `npm ci` requires package-lock.json to be committed and in sync.
+      - run: npm ci
+
+      - run: npm run format:check
+      - run: npm run lint
+
+      # `next typegen` runs inside typecheck and loads next.config, so the
+      # placeholders below must be set for this step as well as the build.
+      - run: npm run typecheck
+
+      - name: Build web
+        run: npm run build --workspace @real-rex/web
