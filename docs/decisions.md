@@ -301,3 +301,48 @@ no 200-file native diffs in review, and no merge conflicts in `.pbxproj`.
 **Cost accepted.** The first build takes 5–10 minutes and requires Xcode.
 Afterwards builds are incremental, and are only needed when native dependencies
 or native config change — JavaScript changes still hot-reload instantly.
+
+---
+
+## 14. Visual direction: precise and modern, not warm and editorial
+
+**Decision.** Light-first with a first-class dark mode. Cool near-neutrals,
+system fonts, Emerald accent, "precision list" layout: hairline-bordered rows,
+a large green numeral per spot, mono metadata, and a footer lockup of the rex
+plus the words "Real Rex".
+
+**Why.** The reference points are Linear and Vercel for structure, Apple and
+Airbnb for generosity. Full reasoning, contrast measurements and the usage
+rules live in [`design.md`](design.md); the values live in
+`packages/shared/src/tokens.ts`.
+
+**Rejected — and worth recording so it is not relitigated.** A warm editorial
+direction: serif headlines, beige paper, masthead rules, byline and standfirst.
+It was internally consistent and wrong for this product. It read as a
+newspaper; Real Rex is a friend handing you five places. Warm greige grounds in
+particular tested as "dull" repeatedly.
+
+**Also rejected.** Apple's system green `#34C759`, because the public web page
+is the most-seen surface and there it carries no meaning, while in the app it
+is indistinguishable from OS chrome. Emerald `#22C55E` is close enough to feel
+native and is ours.
+
+---
+
+## 15. List position is a slot, not a ranking
+
+**Decision.** `list_items.position` (1-5) determines display order only. It is
+not a claim that spot 1 is better than spot 2.
+
+**Why.** Forcing a strict ranking is real cognitive work at exactly the moment
+someone is about to publish, which is where people abandon. The numerals still
+appear in the design, so "five, and only five" stays visible without demanding
+the author defend an order.
+
+**Rejected.** A true ranking — more opinionated and more argued-about, which is
+good for sharing, but not worth the friction before there are any users.
+
+**Still open (deliberately deferred).** Whether the short note and the long
+description belong on `saved_spots` (write once, appears everywhere) or on
+`list_items` (different words per list), or both with an override. Raised, not
+urgent, decided later.
