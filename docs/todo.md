@@ -57,7 +57,8 @@ Discipline that a machine enforces is the only kind that survives contributors.
 
 ## 4. Identity
 
-- [ ] Anonymous sign-in on first launch (decision 16).
+- [ ] Anonymous sign-in created on the **first write**, not on first launch
+      (decision 16). Identity is metered; nothing is owned before a write.
 - [ ] Session persisted in AsyncStorage, per Supabase's RN docs (decision 24).
 - [ ] A short onboarding that explains, honestly, that spots live on this
       device until an account exists.
@@ -95,10 +96,16 @@ The riskiest part of the product, and the reason it works at all.
 
 ## 7. The public page
 
-- [ ] `apps/web` route reading through `get_list_by_slug`. No table access.
-- [ ] Build it from `design.md`. Map renders only in the expanded row, and only
-      when coordinates exist.
-- [ ] OG image, because these links are opened from WhatsApp (decision 6).
+- [ ] Rebuild `apps/web` in Astro, deployed to Cloudflare (decision 26).
+- [ ] **Publish-time render.** Publishing a list generates its HTML, its OG
+      image and its static map images, and writes them as static files. Views
+      never touch Supabase, so a viral list cannot take the database down.
+- [ ] Re-render on edit, and delete on unpublish.
+- [ ] The Real Rex footer is a single toggle in the template (decision 27).
+- [ ] Build it from `design.md`. Disclosure is CSS only — no JavaScript on the
+      page. The map is a static image, revealed rather than loaded, and only
+      present when coordinates exist.
+- [ ] OG image generated at publish, not per request.
 - [ ] Give the page a route back to the product. Currently anything
       screenshotted and forwarded is a dead end.
 

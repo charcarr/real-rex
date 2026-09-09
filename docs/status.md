@@ -11,10 +11,10 @@ placeholder.
 | Area                                          | State                                                     |
 | --------------------------------------------- | --------------------------------------------------------- |
 | Monorepo, npm workspaces, CI                  | done                                                      |
-| `apps/web` — Next.js 16                       | runs, renders a placeholder page                          |
+| `apps/web` — Next.js 16                       | placeholder; to be rebuilt in Astro (decision 26)         |
 | `apps/mobile` — Expo SDK 57 dev build         | builds and runs on the iOS simulator                      |
 | `packages/shared` — design tokens, brand mark | done                                                      |
-| Documentation                                 | README, CONTRIBUTING, CLAUDE.md, decisions ×23, design.md |
+| Documentation                                 | README, CONTRIBUTING, CLAUDE.md, decisions ×27, design.md |
 | **Database**                                  | **not started**                                           |
 | Google Maps link parsing                      | done, tested against real links                           |
 | Auth, PostHog, geocoding, share extension     | not started                                               |
@@ -28,7 +28,7 @@ npm run ios      # iOS simulator (first build ~10 min)
 npm run mobile   # dev server for an installed build
 ```
 
-### Two environment gotchas that will waste an hour each
+### Three gotchas that will waste an hour each
 
 **Xcode.** Expo SDK 57 needs **Xcode 26.4+**; below that it fails inside
 `expo-modules-jsi` with an error about `SWIFT_RETURNS_RETAINED` that looks like
@@ -44,12 +44,26 @@ Never run `sudo xcode-select -s` to switch the global default.
 
 **npm audit.** Reports 13 moderate vulnerabilities. They are accepted and
 documented in decision 12. **Never run `npm audit fix --force`** — it "fixes"
-them by downgrading Expo from 57 to 46.
+them by downgrading Expo from 57 to 46, a 2022 release. `npm audit` is
+deliberately not in CI.
+
+**A split React version breaks something unrelated.** This bit us once and the
+symptom was nowhere near the cause. The web app pinned `react@19.2.8` while
+Expo pinned `19.2.3`; npm hoisted 19.2.8 to the root, nested 19.2.3 under
+`apps/mobile`, and pushed `next` down into `apps/web/node_modules` — while
+`eslint-config-next` stayed hoisted at the root, where it could no longer
+resolve `next` at all. Linting died with "Cannot find module", which looked
+like an upstream bug and was not.
+
+Keep React on **one** version across both apps; React Native is the stricter
+constraint, so the web app follows Expo's pin. After changing a version like
+this, delete `node_modules` and `package-lock.json` and reinstall — npm will
+not re-hoist otherwise.
 
 ## What is decided
 
 Read [`decisions.md`](decisions.md) before proposing an architectural change —
-twenty-three decisions are recorded there with their rejected alternatives, so you
+twenty-seven decisions are recorded there with their rejected alternatives, so you
 can see what was already considered and why it lost.
 
 [`design.md`](design.md) has the visual system. The values live in
