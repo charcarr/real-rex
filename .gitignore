@@ -7,6 +7,7 @@ build/
 .next/
 out/
 next-env.d.ts
+*.tsbuildinfo
 
 # Expo
 .expo/
