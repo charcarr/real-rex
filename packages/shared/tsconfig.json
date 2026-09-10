@@ -1,7 +1,11 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "noEmit": true
+    "noEmit": true,
+    // The index re-exports with explicit .ts extensions so that Node's test
+    // runner can load this package. Safe because this package never emits --
+    // Metro and Next compile it from source.
+    "allowImportingTsExtensions": true
   },
   "include": ["src/**/*.ts"]
 }
