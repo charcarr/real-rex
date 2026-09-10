@@ -111,7 +111,7 @@ export function AddSpotsSheet({ visible, spots, locating, onAdd, onClose }: Prop
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={[styles.backdrop, { paddingBottom: keyboardHeight }]}>
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, keyboardHeight === 0 && styles.sheetResting]}>
           <View style={styles.grabber} />
 
           <View style={styles.header}>
@@ -352,17 +352,22 @@ const makeStyles = (theme: ColorScheme) =>
     },
 
     sheet: {
-      // The sheet hugs its content rather than standing at a fixed height, so
-      // with the keyboard up the field sits just above it with a row of list
-      // showing underneath — which is where the spot being pasted will land.
-      // The cap keeps a strip of backdrop visible so it still reads as a sheet
-      // rather than a screen.
+      // Capped so a strip of backdrop always shows above it — a sheet flush
+      // against the status bar reads as a screen.
       maxHeight: '88%',
       backgroundColor: theme.surface,
       borderTopLeftRadius: radius.xl,
       borderTopRightRadius: radius.xl,
       paddingTop: 10,
     },
+
+    /**
+     * The height it opens at. Dropped once the keyboard is up, at which point
+     * the sheet hugs its content instead: the field ends up just above the
+     * keyboard with a row of list under it, which is where the spot being
+     * pasted lands.
+     */
+    sheetResting: { height: 640 },
 
     grabber: {
       width: 36,
@@ -425,7 +430,9 @@ const makeStyles = (theme: ColorScheme) =>
      * spot to appear. It gives way before the sheet does when room runs short.
      */
     list: {
-      flexShrink: 1,
+      // Grows into the resting sheet; floors at one row so there is always
+      // somewhere for the next spot to appear when the sheet is short.
+      flex: 1,
       minHeight: 96,
       marginTop: 18,
       borderTopWidth: 1,
