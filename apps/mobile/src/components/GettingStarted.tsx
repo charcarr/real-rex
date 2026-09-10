@@ -33,6 +33,23 @@ const monoFamily = Platform.select({ ios: 'Menlo', default: 'monospace' });
 /** Width of the marker column. The rail runs down its centre. */
 const MARKER = 28;
 
+/** Vertical room between one step and the next. The rail is centred in it. */
+const STEP_GAP = space['2xl'];
+
+/**
+ * The rail's length, fixed.
+ *
+ * It used to be `flex: 1`, which meant each segment filled whatever its own
+ * row had left over -- so a step whose detail wrapped to two lines got a long
+ * rail and a one-line step got a stub, and the three of them read as an
+ * accident rather than a repeating mark. A connector between two identical
+ * things should be identical every time.
+ *
+ * Must stay below the shortest span between two markers, which is a one-line
+ * step: text (~46) - numeral (26) + STEP_GAP.
+ */
+const RAIL = 30;
+
 /** Width of the rex on the label. */
 const MARK = 32;
 
@@ -97,9 +114,14 @@ export function GettingStarted({ hasPlaces, hasLists }: Props) {
                   ) : (
                     <Text style={styles.numeral}>{index + 1}</Text>
                   )}
-                  {/* The rail. Green behind you, grey ahead. */}
+                  {/* The rail. Green behind you, grey ahead.
+                      The track spans the whole gap to the next marker and
+                      centres the rail in it, so the mark is the same length
+                      every time however tall the two rows happen to be. */}
                   {isLast ? null : (
-                    <View style={[styles.rail, step.done === true && styles.railDone]} />
+                    <View style={styles.railTrack}>
+                      <View style={[styles.rail, step.done === true && styles.railDone]} />
+                    </View>
                   )}
                 </View>
 
@@ -193,7 +215,7 @@ const makeStyles = (theme: ColorScheme) =>
     steps: {},
 
     /** stretch, so the marker column fills the row and the rail can span it. */
-    step: { flexDirection: 'row', gap: space.lg, alignItems: 'stretch', paddingBottom: space.xl },
+    step: { flexDirection: 'row', gap: space.lg, alignItems: 'stretch', paddingBottom: STEP_GAP },
     stepLast: { paddingBottom: 0 },
 
     marker: { width: MARKER, alignItems: 'center' },
@@ -205,11 +227,21 @@ const makeStyles = (theme: ColorScheme) =>
       color: theme.accent,
       lineHeight: 26,
     },
-    rail: {
+    /**
+     * The full span from the bottom of this numeral to the top of the next
+     * one. The negative margin is the step's own padding given back, so the
+     * track really does reach the marker below rather than stopping at the
+     * row's content edge.
+     */
+    railTrack: {
       flex: 1,
+      marginBottom: -STEP_GAP,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    rail: {
       width: 1.5,
-      marginTop: space.sm,
-      marginBottom: -space.xl,
+      height: RAIL,
       borderRadius: 1,
       backgroundColor: theme.border,
     },
