@@ -1,9 +1,5 @@
 import { expandShortLink } from './expand-link';
-import {
-  parseMapsLink,
-  type ParsedMapsLink,
-  type PlaceRefType,
-} from './maps-link';
+import { parseMapsLink, type ParsedMapsLink, type PlaceRefType } from './maps-link';
 
 /**
  * A saved spot, as the device holds it.
@@ -45,19 +41,14 @@ export type AddResult = { kind: 'added'; spot: Spot } | AddFailure;
  * dependency before the store exists. Replace when `src/store` lands.
  */
 let counter = 0;
-const makeId = (): string =>
-  `tmp-${Date.now().toString(36)}-${(counter++).toString(36)}`;
+const makeId = (): string => `tmp-${Date.now().toString(36)}-${(counter++).toString(36)}`;
 
 /** Two spots are the same place when they carry the same identifier, or when
  *  the link canonicalises to the same URL. */
 const isSame = (a: Spot, b: Spot): boolean =>
-  (a.placeRef !== null && a.placeRef === b.placeRef) ||
-  a.googleMapsUrl === b.googleMapsUrl;
+  (a.placeRef !== null && a.placeRef === b.placeRef) || a.googleMapsUrl === b.googleMapsUrl;
 
-export async function addFromLink(
-  existing: Spot[],
-  input: string,
-): Promise<AddResult> {
+export async function addFromLink(existing: Spot[], input: string): Promise<AddResult> {
   let parsed: ParsedMapsLink = parseMapsLink(input);
 
   // Short links carry nothing at all — the redirect has to be followed once,

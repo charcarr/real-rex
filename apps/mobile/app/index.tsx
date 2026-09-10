@@ -31,9 +31,7 @@ export default function HomeRoute() {
 
     const filled = await fillInMissing(spot);
     if (filled) {
-      setSpots((current) =>
-        current.map((s) => (s.id === filled.id ? filled : s)),
-      );
+      setSpots((current) => current.map((s) => (s.id === filled.id ? filled : s)));
     }
     setLocating((current) => current.filter((id) => id !== spot.id));
   };

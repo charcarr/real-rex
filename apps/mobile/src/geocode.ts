@@ -31,9 +31,7 @@ import type { Spot } from './spots';
  */
 function formatAddress(place: Location.LocationGeocodedAddress): string | null {
   const streetLine =
-    place.name ??
-    [place.street, place.streetNumber].filter(Boolean).join(' ') ??
-    null;
+    place.name ?? [place.street, place.streetNumber].filter(Boolean).join(' ') ?? null;
   const cityLine = [place.postalCode, place.city].filter(Boolean).join(' ');
   const line = [streetLine, cityLine].filter(Boolean).join(', ');
   return line.length > 0 ? line : null;

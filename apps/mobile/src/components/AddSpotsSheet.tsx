@@ -53,13 +53,7 @@ type Props = {
 /** What the last paste did, shown as a row above the saved ones. */
 type Outcome = Exclude<AddResult, { kind: 'added' }> | null;
 
-export function AddSpotsSheet({
-  visible,
-  spots,
-  locating,
-  onAdd,
-  onClose,
-}: Props) {
+export function AddSpotsSheet({ visible, spots, locating, onAdd, onClose }: Props) {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const [draft, setDraft] = useState('');
@@ -86,26 +80,15 @@ export function AddSpotsSheet({
   };
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={styles.sheet}>
             <View style={styles.grabber} />
 
             <View style={styles.header}>
               <Text style={styles.title}>Add spots</Text>
-              <Pressable
-                onPress={onClose}
-                accessibilityRole="button"
-                hitSlop={12}
-              >
+              <Pressable onPress={onClose} accessibilityRole="button" hitSlop={12}>
                 <Text style={styles.done}>Done</Text>
               </Pressable>
             </View>
@@ -131,9 +114,7 @@ export function AddSpotsSheet({
                   inputMode="url"
                 />
               </View>
-              <Text style={styles.hint}>
-                PASTE ANOTHER — YOU CAN WRITE NOTES LATER
-              </Text>
+              <Text style={styles.hint}>PASTE ANOTHER — YOU CAN WRITE NOTES LATER</Text>
             </View>
 
             <ScrollView
@@ -155,8 +136,7 @@ export function AddSpotsSheet({
 
             <View style={styles.footer}>
               <Text style={styles.hint}>
-                {spots.length} {spots.length === 1 ? 'SPOT' : 'SPOTS'} IN YOUR
-                LIBRARY
+                {spots.length} {spots.length === 1 ? 'SPOT' : 'SPOTS'} IN YOUR LIBRARY
               </Text>
             </View>
           </View>
@@ -170,15 +150,7 @@ export function AddSpotsSheet({
 // Rows
 // ---------------------------------------------------------------------------
 
-function SpotRow({
-  spot,
-  locating,
-  theme,
-}: {
-  spot: Spot;
-  locating: boolean;
-  theme: ColorScheme;
-}) {
+function SpotRow({ spot, locating, theme }: { spot: Spot; locating: boolean; theme: ColorScheme }) {
   const styles = makeStyles(theme);
   const subtitle =
     spot.address ??
@@ -223,13 +195,7 @@ function PendingRow({ theme }: { theme: ColorScheme }) {
 
 /** The ways a paste can fail. Each has a different fix, so each says
  *  something different (decision 21). */
-function OutcomeRow({
-  outcome,
-  theme,
-}: {
-  outcome: NonNullable<Outcome>;
-  theme: ColorScheme;
-}) {
+function OutcomeRow({ outcome, theme }: { outcome: NonNullable<Outcome>; theme: ColorScheme }) {
   const styles = makeStyles(theme);
 
   if (outcome.kind === 'duplicate') {
@@ -285,16 +251,32 @@ function OutcomeRow({
 // ---------------------------------------------------------------------------
 
 const LinkIcon = ({ color }: { color: string }) => (
-  <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={color}
-    strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+  <Svg
+    width={18}
+    height={18}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={color}
+    strokeWidth={1.75}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <Path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
     <Path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
   </Svg>
 );
 
 const BrokenLinkIcon = ({ color }: { color: string }) => (
-  <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={color}
-    strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+  <Svg
+    width={18}
+    height={18}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={color}
+    strokeWidth={1.75}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <Path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
     <Path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
     <Path d="M3 3l18 18" />
@@ -302,15 +284,31 @@ const BrokenLinkIcon = ({ color }: { color: string }) => (
 );
 
 const CheckIcon = ({ color }: { color: string }) => (
-  <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={color}
-    strokeWidth={2.25} strokeLinecap="round" strokeLinejoin="round">
+  <Svg
+    width={18}
+    height={18}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={color}
+    strokeWidth={2.25}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <Path d="M4 12.5l5.5 5.5L20 7" />
   </Svg>
 );
 
 const InfoIcon = ({ color }: { color: string }) => (
-  <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={color}
-    strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+  <Svg
+    width={18}
+    height={18}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={color}
+    strokeWidth={1.75}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <Circle cx={12} cy={12} r={9} />
     <Path d="M12 8v5" />
     <Path d="M12 16h.01" />

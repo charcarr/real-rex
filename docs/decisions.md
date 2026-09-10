@@ -9,41 +9,41 @@ not here — nobody reads a decision log when their build is broken.
 
 ## Index
 
-| #   | Decision                                            | Status                     |
-| --- | --------------------------------------------------- | -------------------------- |
-| 1   | Monorepo, not two repositories                      |                            |
-| 2   | npm workspaces, not pnpm                            |                            |
-| 3   | No task runner                                      |                            |
-| 4   | Places come from pasted Google Maps links           | partly superseded by 17    |
-| 5   | Shared by link; no friend graph in the MVP          |                            |
-| 6   | Public pages are a separate web app                 | framework superseded by 26 |
-| 7   | Five spots per list, enforced by the database       |                            |
-| 8   | Apple sign-in only at launch                        | partly superseded by 16    |
-| 9   | PostHog for analytics, errors and logs — EU         |                            |
-| 10  | Supabase migrations are the only source of truth    |                            |
-| 11  | CI fails if any table lacks row-level security      | extended by 22             |
-| 12  | Two npm audit advisories accepted, not patched      |                            |
-| 13  | Development builds, not Expo Go                     |                            |
-| 14  | Visual direction: precise and modern                |                            |
-| 15  | List position is a slot, not a ranking              | open item closed by 20     |
-| 16  | Anonymous sign-in, created lazily                   | trigger moved by 29        |
-| 17  | Short links expanded on device, never on our server |                            |
-| 18  | Coordinates come from MapKit, not Google            |                            |
-| 19  | No shared `places` table                            |                            |
-| 20  | Note and description live on `saved_spots`          | superseded by 30           |
-| 21  | Capture is a burst; editing is a separate pass      |                            |
-| 22  | `anon` has no table access; one public function     |                            |
-| 23  | The stored shape is source-neutral                  |                            |
-| 24  | Supabase session stored in AsyncStorage             | closes open item in 8      |
-| 25  | App screens echo the list; the ring carries the cap |                            |
-| 26  | Astro on Cloudflare, rendered at publish            | mechanism superseded by 32 |
-| 27  | Monetisation posture                                | detail in `monetisation.md`|
-| 28  | The device is the source of truth until publish     |                            |
-| 29  | Identity is created at publish, and is optional     | supersedes timing in 16    |
-| 30  | List items are copies, not references               | supersedes 20              |
-| 31  | Publishing goes through one database function       | **reversed by 33**         |
-| 32  | Pages are rendered on demand behind a cache         | supersedes mechanism in 26 |
-| 33  | Publishing is written client-side, not in Postgres  | reverses 31                |
+| #   | Decision                                            | Status                      |
+| --- | --------------------------------------------------- | --------------------------- |
+| 1   | Monorepo, not two repositories                      |                             |
+| 2   | npm workspaces, not pnpm                            |                             |
+| 3   | No task runner                                      |                             |
+| 4   | Places come from pasted Google Maps links           | partly superseded by 17     |
+| 5   | Shared by link; no friend graph in the MVP          |                             |
+| 6   | Public pages are a separate web app                 | framework superseded by 26  |
+| 7   | Five spots per list, enforced by the database       |                             |
+| 8   | Apple sign-in only at launch                        | partly superseded by 16     |
+| 9   | PostHog for analytics, errors and logs — EU         |                             |
+| 10  | Supabase migrations are the only source of truth    |                             |
+| 11  | CI fails if any table lacks row-level security      | extended by 22              |
+| 12  | Two npm audit advisories accepted, not patched      |                             |
+| 13  | Development builds, not Expo Go                     |                             |
+| 14  | Visual direction: precise and modern                |                             |
+| 15  | List position is a slot, not a ranking              | open item closed by 20      |
+| 16  | Anonymous sign-in, created lazily                   | trigger moved by 29         |
+| 17  | Short links expanded on device, never on our server |                             |
+| 18  | Coordinates come from MapKit, not Google            |                             |
+| 19  | No shared `places` table                            |                             |
+| 20  | Note and description live on `saved_spots`          | superseded by 30            |
+| 21  | Capture is a burst; editing is a separate pass      |                             |
+| 22  | `anon` has no table access; one public function     |                             |
+| 23  | The stored shape is source-neutral                  |                             |
+| 24  | Supabase session stored in AsyncStorage             | closes open item in 8       |
+| 25  | App screens echo the list; the ring carries the cap |                             |
+| 26  | Astro on Cloudflare, rendered at publish            | mechanism superseded by 32  |
+| 27  | Monetisation posture                                | detail in `monetisation.md` |
+| 28  | The device is the source of truth until publish     |                             |
+| 29  | Identity is created at publish, and is optional     | supersedes timing in 16     |
+| 30  | List items are copies, not references               | supersedes 20               |
+| 31  | Publishing goes through one database function       | **reversed by 33**          |
+| 32  | Pages are rendered on demand behind a cache         | supersedes mechanism in 26  |
+| 33  | Publishing is written client-side, not in Postgres  | reverses 31                 |
 
 ---
 
@@ -377,10 +377,10 @@ coordinates is publishable; the map just does not render.
 > **Amended 2026-09-10, once both link shapes had been seen in the app.** They
 > are exactly complementary, and each is missing what the other has:
 >
-> | | name | address | coordinates |
-> | --- | --- | --- | --- |
-> | expanded short link | yes | — | yes |
-> | iOS share | yes | yes | — |
+> |                     | name | address | coordinates |
+> | ------------------- | ---- | ------- | ----------- |
+> | expanded short link | yes  | —       | yes         |
+> | iOS share           | yes  | yes     | —           |
 >
 > **A user pastes one link, and it is whichever one they happen to have.** Both
 > shapes reach the app for an ordinary reason: the mobile share sheet produces
@@ -798,7 +798,6 @@ moving parts on day one, but no atomicity, the slug generated somewhere a
 hostile client can influence, and nowhere to put a limit later that does not
 ship in a binary.
 
-
 ---
 
 ## 32. Pages are rendered on demand behind a cache
@@ -826,11 +825,11 @@ of truth, so there is nothing to fall out of sync.
 **Compare the failure shapes**, which is the language 26 used to choose in the
 first place:
 
-| | rendered at publish | rendered on demand |
-| --- | --- | --- |
-| render or purge fails | the URL 404s | the page is stale until the TTL |
-| Supabase is down | pages serve | cached pages serve; a brand-new list fails |
-| a list goes viral | free | one database hit per PoP per TTL |
+|                       | rendered at publish | rendered on demand                         |
+| --------------------- | ------------------- | ------------------------------------------ |
+| render or purge fails | the URL 404s        | the page is stale until the TTL            |
+| Supabase is down      | pages serve         | cached pages serve; a brand-new list fails |
+| a list goes viral     | free                | one database hit per PoP per TTL           |
 
 Every failure becomes "slightly stale" rather than "broken", and 26's actual
 goal survives: the cache absorbs the traffic, so the database sees a trickle
@@ -855,7 +854,6 @@ device, and uploaded once. It is immutable per version, image rendering is the
 fiddliest thing to do in a Worker, and a missing OG image degrades to "no
 preview thumbnail" rather than to a broken page — so it does not belong in the
 request path.
-
 
 ---
 
@@ -897,7 +895,7 @@ Stated as the rule: **logic this complex does not live somewhere invisible.**
 
 **The flow to build, when the publish button exists**
 
-*First publish is safe client-side.* Three requests, and nothing is visible
+_First publish is safe client-side._ Three requests, and nothing is visible
 until the last one:
 
 ```
@@ -906,7 +904,7 @@ POST  /list_item   the array of up to five — one request, one transaction
 PATCH /list        published_at = now()
 ```
 
-*Editing a live list is the only unsafe path.* `DELETE` the items then `POST`
+_Editing a live list is the only unsafe path._ `DELETE` the items then `POST`
 the new ones leaves a window where the live page has no spots, and a request
 landing in it caches an empty page for the whole TTL. Two ways to close it,
 decided at the time:
@@ -919,7 +917,7 @@ decided at the time:
    the option that motivated the decision, and the preferred one if a server
    exists for any other reason by then.
 
-*Accept the window* only knowingly. It is short and rare; it is not nothing.
+_Accept the window_ only knowingly. It is short and rare; it is not nothing.
 
 **What the client must NOT be trusted with, and where that is enforced**
 

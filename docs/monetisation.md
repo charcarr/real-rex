@@ -38,7 +38,7 @@ until the cycle rolls over, rather than producing a bill there is no fund for.
 Worth being precise, because the intuitive brake does not fit the failure.
 
 The per-user cost is **MAU** — one publisher is charged once whether they make
-one list or forty. A viral event is *many publishers with one list each*. So a
+one list or forty. A viral event is _many publishers with one list each_. So a
 **per-user list cap barely moves the bill.** It is a reasonable monetisation
 lever and a poor circuit breaker.
 
@@ -50,12 +50,12 @@ and cost nothing at any volume.
 
 A single-row `limits` table in Postgres, read by `publish_list()` (decision 31):
 
-| Field | Purpose | Ships as |
-| --- | --- | --- |
+| Field                 | Purpose                   | Ships as                                                                                                    |
+| --------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | `max_lists_anonymous` | anonymous publishers only | **set** — a low number, possibly 1. The only limit on at launch, and it is anti-spam, not monetisation (29) |
-| `max_lists_signed_in` | signed-in publishers | unset |
-| `publishing_paused` | global stop | false |
-| `publishes_per_hour` | crude rate limit | unset |
+| `max_lists_signed_in` | signed-in publishers      | unset                                                                                                       |
+| `publishing_paused`   | global stop               | false                                                                                                       |
+| `publishes_per_hour`  | crude rate limit          | unset                                                                                                       |
 
 **Why in the database rather than the app.** Changing a client-side limit
 requires an App Store submission and days of review. Changing this one is a
