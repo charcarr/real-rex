@@ -1,4 +1,5 @@
 import { expandShortLink } from './expand-link';
+import { makeId } from './id';
 import { parseMapsLink, type ParsedMapsLink, type PlaceRefType } from './maps-link';
 
 /**
@@ -17,6 +18,15 @@ export interface Spot {
   longitude: number | null;
   placeRef: string | null;
   placeRefType: PlaceRefType | null;
+  /**
+   * The one line that appears under the name on the public page. Empty until
+   * the editing pass -- capture is a burst and does not ask for words
+   * (decision 21). "Needs a note" is derived from this being empty, never
+   * from a stored flag.
+   */
+  shortNote: string | null;
+  /** The paragraph behind the disclosure on the public page. Optional. */
+  longNote: string | null;
   /** The rebuilt canonical link, never the pasted string. */
   googleMapsUrl: string;
   /** True until MapKit resolves coordinates. Nothing does that yet. */
@@ -35,13 +45,6 @@ export type AddFailure =
   | { kind: 'unparseable' };
 
 export type AddResult = { kind: 'added'; spot: Spot } | AddFailure;
-
-/**
- * TEMPORARY. The store will need real UUIDs; this avoids pulling in a crypto
- * dependency before the store exists. Replace when `src/store` lands.
- */
-let counter = 0;
-const makeId = (): string => `tmp-${Date.now().toString(36)}-${(counter++).toString(36)}`;
 
 /** Two spots are the same place when they carry the same identifier, or when
  *  the link canonicalises to the same URL. */
@@ -80,20 +83,22 @@ export async function addFromLink(existing: Spot[], input: string): Promise<AddR
   const spot: Spot =
     parsed.kind === 'pin'
       ? {
-          id: makeId(),
+          id: makeId('spot'),
           title: 'Dropped pin',
           address: null,
           latitude: parsed.lat,
           longitude: parsed.lng,
           placeRef: null,
           placeRefType: null,
+          shortNote: null,
+          longNote: null,
           googleMapsUrl: parsed.canonicalUrl,
           needsGeocode: false,
           createdAt: now,
           updatedAt: now,
         }
       : {
-          id: makeId(),
+          id: makeId('spot'),
           // Google's name is sometimes useless on its own ("4850"), so the
           // title is always editable — the address is the fallback label.
           title: parsed.name ?? parsed.address ?? 'Untitled place',
@@ -102,6 +107,8 @@ export async function addFromLink(existing: Spot[], input: string): Promise<AddR
           longitude: parsed.lng,
           placeRef: parsed.ref,
           placeRefType: parsed.refType,
+          shortNote: null,
+          longNote: null,
           googleMapsUrl: parsed.canonicalUrl,
           needsGeocode: parsed.needsGeocode,
           createdAt: now,
