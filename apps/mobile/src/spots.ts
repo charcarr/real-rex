@@ -73,6 +73,11 @@ export async function addFromLink(
             observed: expansion.observed,
           };
     }
+    // TEMPORARY. Which of the three paths worked decides whether the native
+    // URLSession module from decision 17 has to exist -- and 'location' is the
+    // only one that reads the header without loading anything Google renders.
+    console.log('[expand]', expansion.via, expansion.url);
+
     parsed = parseMapsLink(expansion.url);
     if (parsed.kind === 'short') return { kind: 'unparseable' };
   }

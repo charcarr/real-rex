@@ -374,6 +374,36 @@ product is about).
 **Consequence.** `lat`/`lng` are nullable permanently. A spot without
 coordinates is publishable; the map just does not render.
 
+> **Amended 2026-09-10, once both link shapes had been seen in the app.** They
+> are exactly complementary, and each is missing what the other has:
+>
+> | | name | address | coordinates |
+> | --- | --- | --- | --- |
+> | expanded short link | yes | — | yes |
+> | iOS share | yes | yes | — |
+>
+> **A user pastes one link, and it is whichever one they happen to have.** Both
+> shapes reach the app for an ordinary reason: the mobile share sheet produces
+> the second, and the first arrives second-hand — forwarded into WhatsApp by
+> someone who was at a laptop. Asking anyone to supply both is not a fallback,
+> it is a bug.
+>
+> So geocoding is **required rather than corrective**, and it runs in whichever
+> direction the link left empty: forward from the address when there are no
+> coordinates, reverse from the coordinates when there is no address. Same
+> geocoder, and on iOS that is still MapKit — reached through `expo-location`
+> rather than a hand-written module, because the wrapper is first-party, does
+> both directions and is less code to own.
+>
+> **This also closes an idea that looked appealing and is not.** Pasting the
+> same place both ways would produce a complete record, so a duplicate paste
+> could enrich the existing spot rather than being discarded. Nobody will ever
+> do that, and building for it would mean designing a flow that asks. The
+> duplicate stays what decision 21 says it is: "already in your library".
+>
+> Failures stay silent. A spot that cannot be located is still a spot, and the
+> row keeps whatever the link gave it.
+
 ---
 
 ## 19. No shared `places` table

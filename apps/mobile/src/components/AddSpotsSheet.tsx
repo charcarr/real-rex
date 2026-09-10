@@ -44,6 +44,8 @@ const monoFamily = Platform.select({ ios: 'Menlo', default: 'monospace' });
 type Props = {
   visible: boolean;
   spots: Spot[];
+  /** Ids of spots the geocoder is still working on. */
+  locating: string[];
   onAdd: (spot: Spot) => void;
   onClose: () => void;
 };
@@ -51,7 +53,13 @@ type Props = {
 /** What the last paste did, shown as a row above the saved ones. */
 type Outcome = Exclude<AddResult, { kind: 'added' }> | null;
 
-export function AddSpotsSheet({ visible, spots, onAdd, onClose }: Props) {
+export function AddSpotsSheet({
+  visible,
+  spots,
+  locating,
+  onAdd,
+  onClose,
+}: Props) {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const [draft, setDraft] = useState('');
@@ -136,7 +144,12 @@ export function AddSpotsSheet({ visible, spots, onAdd, onClose }: Props) {
               {pending ? <PendingRow theme={theme} /> : null}
               {outcome ? <OutcomeRow outcome={outcome} theme={theme} /> : null}
               {[...spots].reverse().map((spot) => (
-                <SpotRow key={spot.id} spot={spot} theme={theme} />
+                <SpotRow
+                  key={spot.id}
+                  spot={spot}
+                  locating={locating.includes(spot.id)}
+                  theme={theme}
+                />
               ))}
             </ScrollView>
 
@@ -157,17 +170,29 @@ export function AddSpotsSheet({ visible, spots, onAdd, onClose }: Props) {
 // Rows
 // ---------------------------------------------------------------------------
 
-function SpotRow({ spot, theme }: { spot: Spot; theme: ColorScheme }) {
+function SpotRow({
+  spot,
+  locating,
+  theme,
+}: {
+  spot: Spot;
+  locating: boolean;
+  theme: ColorScheme;
+}) {
   const styles = makeStyles(theme);
   const subtitle =
     spot.address ??
     (spot.latitude !== null && spot.longitude !== null
       ? `${spot.latitude.toFixed(5)}, ${spot.longitude.toFixed(5)}`
-      : 'No address yet');
+      : 'Looking it up');
 
   return (
     <View style={styles.row}>
-      <CheckIcon color={theme.accent} />
+      {locating ? (
+        <ActivityIndicator size="small" color={theme.accent} />
+      ) : (
+        <CheckIcon color={theme.accent} />
+      )}
       <View style={styles.rowText}>
         <Text style={styles.rowTitle} numberOfLines={1}>
           {spot.title}
@@ -176,9 +201,7 @@ function SpotRow({ spot, theme }: { spot: Spot; theme: ColorScheme }) {
           {subtitle}
         </Text>
       </View>
-      {spot.needsGeocode ? (
-        <Text style={styles.rowTag}>NO COORDS</Text>
-      ) : null}
+      {locating ? <Text style={styles.rowTag}>LOCATING</Text> : null}
     </View>
   );
 }

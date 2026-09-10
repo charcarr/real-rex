@@ -72,13 +72,16 @@ decision 28 every write here is **local** — the two-writes-per-spot shape from
 21 still holds, but the network is only needed to expand the link and geocode,
 never to store the row.
 
-- [ ] Native module: follow one redirect with `URLSession` and return the
-      `Location` header **without following it**. React Native's `fetch`
-      ignores `redirect: 'manual'` on iOS and would land on Google's consent
-      page (decision 17).
+- [ ] Short-link expansion. `src/expand-link.ts` does it in JavaScript and
+      **works** — decision 17 assumed React Native's `fetch` could not and that
+      a native `URLSession` module was required. Confirm from the `[expand]`
+      log which path it took: `location` reads the header and renders nothing,
+      which is what 17 wanted; `final-url` means a page was loaded, and only
+      then is the native module worth writing.
 - [ ] Wire `parseMapsLink` from `@real-rex/shared` to that module.
-- [ ] `MKLocalSearch` geocoding on `name + address`, patching `lat`/`lng` onto
-      the existing row when it resolves (decision 18).
+- [x] Geocoding, both directions, via `expo-location` — Apple's geocoder, so
+      still MapKit (decision 18, amended). Runs after the row is on screen and
+      patches it, which is the LOCATING state on the canvas.
 - [ ] Paste flow built for a burst: insert on parse, input stays ready, no
       modal, no confirmation, nothing steals focus (decision 21).
 - [ ] Duplicate paste handled as "already in your library, here it is" rather
