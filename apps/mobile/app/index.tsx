@@ -2,11 +2,14 @@ import { useState } from 'react';
 
 import { AddSpotsSheet } from '../src/components/AddSpotsSheet';
 import { fillInMissing } from '../src/geocode';
-import { NewUserHome } from '../src/screens/NewUserHome';
+import { Home } from '../src/screens/Home';
 import type { Spot } from '../src/spots';
 
 /**
  * Home.
+ *
+ * One screen in both states — the header and the paste bar are constant, and
+ * the middle is either the getting-started checklist or the lists themselves.
  *
  * The library lives in component state for now. It moves behind the storage
  * module when that lands (decision 28) — this is the only place that holds it,
@@ -37,7 +40,14 @@ export default function HomeRoute() {
 
   return (
     <>
-      <NewUserHome onPasteFirstPlace={() => setAdding(true)} />
+      <Home
+        hasPlaces={spots.length > 0}
+        // No list model yet — the rows arrive with the builder.
+        hasLists={false}
+        onPastePlace={() => setAdding(true)}
+        // The builder is not built — todo.md section 6.
+        onCreateList={undefined}
+      />
       <AddSpotsSheet
         visible={adding}
         spots={spots}
