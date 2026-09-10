@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
+  Keyboard,
   Modal,
   Platform,
   Pressable,
@@ -62,6 +62,35 @@ export function AddSpotsSheet({ visible, spots, locating, onAdd, onClose }: Prop
    *  blocked by a spinner over the whole sheet. */
   const [pending, setPending] = useState(false);
 
+  /**
+   * The keyboard's height, straight from the event.
+   *
+   * KeyboardAvoidingView derives its inset from its own measured frame, and
+   * inside a Modal that measurement disagrees with the window — which is what
+   * left the sheet floating above the keyboard. The event reports the
+   * keyboard's real height in window coordinates, so padding the backdrop by
+   * it puts the sheet exactly on top of the keyboard, on both platforms.
+   *
+   * `will` events are iOS-only and fire in step with the animation; Android
+   * only has `did`.
+   */
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const shown = Keyboard.addListener(showEvent, (e) =>
+      setKeyboardHeight(e.endCoordinates.height),
+    );
+    const hidden = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+
+    return () => {
+      shown.remove();
+      hidden.remove();
+    };
+  }, []);
+
   const submit = async () => {
     const input = draft.trim();
     if (!input) return;
@@ -81,68 +110,63 @@ export function AddSpotsSheet({ visible, spots, locating, onAdd, onClose }: Prop
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
-        <KeyboardAvoidingView
-          style={styles.avoider}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <View style={styles.sheet}>
-            <View style={styles.grabber} />
+      <View style={[styles.backdrop, { paddingBottom: keyboardHeight }]}>
+        <View style={styles.sheet}>
+          <View style={styles.grabber} />
 
-            <View style={styles.header}>
-              <Text style={styles.title}>Add spots</Text>
-              <Pressable onPress={onClose} accessibilityRole="button" hitSlop={12}>
-                <Text style={styles.done}>Done</Text>
-              </Pressable>
-            </View>
-
-            <View style={styles.inputWrap}>
-              <View style={styles.field}>
-                <LinkIcon color={theme.accentText} />
-                <TextInput
-                  value={draft}
-                  onChangeText={setDraft}
-                  onSubmitEditing={submit}
-                  placeholder="Paste a Google Maps link"
-                  placeholderTextColor={theme.textMuted}
-                  style={styles.input}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  keyboardType="url"
-                  returnKeyType="done"
-                  // Keeps the keyboard up between pastes, once it is up at all.
-                  blurOnSubmit={false}
-                  editable={!pending}
-                  inputMode="url"
-                />
-              </View>
-              <Text style={styles.hint}>PASTE ANOTHER — YOU CAN WRITE NOTES LATER</Text>
-            </View>
-
-            <ScrollView
-              style={styles.list}
-              keyboardShouldPersistTaps="handled"
-              contentContainerStyle={styles.listContent}
-            >
-              {pending ? <PendingRow theme={theme} /> : null}
-              {outcome ? <OutcomeRow outcome={outcome} theme={theme} /> : null}
-              {[...spots].reverse().map((spot) => (
-                <SpotRow
-                  key={spot.id}
-                  spot={spot}
-                  locating={locating.includes(spot.id)}
-                  theme={theme}
-                />
-              ))}
-            </ScrollView>
-
-            <View style={styles.footer}>
-              <Text style={styles.hint}>
-                {spots.length} {spots.length === 1 ? 'SPOT' : 'SPOTS'} IN YOUR LIBRARY
-              </Text>
-            </View>
+          <View style={styles.header}>
+            <Text style={styles.title}>Add spots</Text>
+            <Pressable onPress={onClose} accessibilityRole="button" hitSlop={12}>
+              <Text style={styles.done}>Done</Text>
+            </Pressable>
           </View>
-        </KeyboardAvoidingView>
+
+          <View style={styles.inputWrap}>
+            <View style={styles.field}>
+              <LinkIcon color={theme.accentText} />
+              <TextInput
+                value={draft}
+                onChangeText={setDraft}
+                onSubmitEditing={submit}
+                placeholder="Paste a Google Maps link"
+                placeholderTextColor={theme.textMuted}
+                style={styles.input}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+                returnKeyType="done"
+                // Keeps the keyboard up between pastes, once it is up at all.
+                blurOnSubmit={false}
+                editable={!pending}
+                inputMode="url"
+              />
+            </View>
+            <Text style={styles.hint}>PASTE ANOTHER — YOU CAN WRITE NOTES LATER</Text>
+          </View>
+
+          <ScrollView
+            style={styles.list}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.listContent}
+          >
+            {pending ? <PendingRow theme={theme} /> : null}
+            {outcome ? <OutcomeRow outcome={outcome} theme={theme} /> : null}
+            {[...spots].reverse().map((spot) => (
+              <SpotRow
+                key={spot.id}
+                spot={spot}
+                locating={locating.includes(spot.id)}
+                theme={theme}
+              />
+            ))}
+          </ScrollView>
+
+          <View style={styles.footer}>
+            <Text style={styles.hint}>
+              {spots.length} {spots.length === 1 ? 'SPOT' : 'SPOTS'} IN YOUR LIBRARY
+            </Text>
+          </View>
+        </View>
       </View>
     </Modal>
   );
@@ -327,20 +351,13 @@ const makeStyles = (theme: ColorScheme) =>
       backgroundColor: 'rgba(10,10,11,0.55)',
     },
 
-    /**
-     * Bounded by the screen, so the padding the keyboard adds squeezes the
-     * sheet instead of pushing its top off the top of the display.
-     */
-    avoider: { flex: 1, justifyContent: 'flex-end' },
-
     sheet: {
-      // The height the sheet is drawn at, but it yields. `flexShrink` lets it
-      // give way when the keyboard leaves less room than this, and the
-      // maxHeight keeps a strip of backdrop visible above it either way — a
-      // sheet flush against the status bar reads as a screen, not a sheet.
-      height: 640,
+      // The sheet hugs its content rather than standing at a fixed height, so
+      // with the keyboard up the field sits just above it with a row of list
+      // showing underneath — which is where the spot being pasted will land.
+      // The cap keeps a strip of backdrop visible so it still reads as a sheet
+      // rather than a screen.
       maxHeight: '88%',
-      flexShrink: 1,
       backgroundColor: theme.surface,
       borderTopLeftRadius: radius.xl,
       borderTopRightRadius: radius.xl,
@@ -403,7 +420,17 @@ const makeStyles = (theme: ColorScheme) =>
       marginTop: space.md,
     },
 
-    list: { flex: 1, marginTop: 18, borderTopWidth: 1, borderTopColor: theme.border },
+    /**
+     * One row's worth is always visible, so there is somewhere for the next
+     * spot to appear. It gives way before the sheet does when room runs short.
+     */
+    list: {
+      flexShrink: 1,
+      minHeight: 96,
+      marginTop: 18,
+      borderTopWidth: 1,
+      borderTopColor: theme.border,
+    },
     listContent: { paddingBottom: space.lg },
 
     row: {
