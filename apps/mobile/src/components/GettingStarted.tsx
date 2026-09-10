@@ -154,13 +154,23 @@ const makeStyles = (theme: ColorScheme) =>
       paddingBottom: space.xl,
     },
 
-    /** Straddles the top border: half above the line, half below. */
+    /**
+     * Straddles the top border: half above the line, half below.
+     *
+     * Left rather than centred, so the mark's left edge lands on the card's
+     * own content gutter and the label sits on the same axis as the markers
+     * below it. Centred it was balanced but related to nothing; here the
+     * emblem, the numerals and the rail all start from one line.
+     */
     headRow: {
       position: 'absolute',
       top: -LABEL / 2,
       left: 0,
       right: 0,
-      alignItems: 'center',
+      alignItems: 'flex-start',
+      // The label's own padding is what cuts the border, so subtract it to
+      // put the mark itself on the gutter.
+      paddingLeft: space.lg - space.md,
     },
     /** Centred, so the mark and the label read as one small emblem over the
      *  left-aligned steps rather than as another thing on the left edge. The
