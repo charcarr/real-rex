@@ -1,23 +1,28 @@
 # Status
 
-Last updated 2026-09-09. Update this when the state below stops being true.
+Last updated 2026-09-10. Update this when the state below stops being true.
 
 ## Where the project is
 
-The scaffolding, tooling and design system are done and committed. **There is
-no database and no app functionality yet.** Both apps run and render a
-placeholder.
+The scaffolding, tooling and design system are done and committed. The schema
+is live in Supabase and the mobile app has its first screen and its first real
+feature: paste a Google Maps link, get a place. **There is still no list model**
+— `hasLists` is hardcoded `false` — and the web app is still a placeholder.
 
-| Area                                          | State                                                     |
-| --------------------------------------------- | --------------------------------------------------------- |
-| Monorepo, npm workspaces, CI                  | done                                                      |
-| `apps/web` — Next.js 16                       | placeholder; to be rebuilt in Astro (decision 26)         |
-| `apps/mobile` — Expo SDK 57 dev build         | builds and runs on the iOS simulator                      |
-| `packages/shared` — design tokens, brand mark | done                                                      |
-| Documentation                                 | README, CONTRIBUTING, CLAUDE.md, decisions ×27, design.md |
-| **Database**                                  | live in Supabase, built by hand; not yet in migrations     |
-| Google Maps link parsing                      | done, tested against real links                           |
-| Auth, PostHog, geocoding, share extension     | not started                                               |
+| Area                                          | State                                                          |
+| --------------------------------------------- | -------------------------------------------------------------- |
+| Monorepo, npm workspaces, CI                  | done                                                           |
+| `apps/web` — Next.js 16                       | placeholder; to be rebuilt in Astro (decision 26)              |
+| `apps/mobile` — Expo SDK 57 dev build         | home screen, add-spots sheet, geocoding, splash                |
+| Splash — native + animated brand line         | done; the two are matched so the handover is invisible         |
+| `packages/shared` — design tokens, brand mark | done                                                           |
+| Documentation                                 | README, CONTRIBUTING, CLAUDE.md, decisions ×27, design.md      |
+| **Database**                                  | live in Supabase, built by hand; not yet in migrations         |
+| Google Maps link parsing                      | done, tested against real links                                |
+| Geocoding                                     | done — `expo-location`, fills in whichever half the link lacks |
+| List model, builder, publish flow             | **not started — this is next**                                 |
+| Local persistence (MMKV)                      | not started; the library is `useState` and empties on reload   |
+| Auth, PostHog, share extension                | not started                                                    |
 
 ## Running it
 
@@ -94,8 +99,11 @@ Highlights that catch people out:
 
 ## Next
 
-The ordered task list lives in [`todo.md`](todo.md). The database is the next
-thing to write; everything else is blocked on it.
+The ordered task list lives in [`todo.md`](todo.md).
+
+**The list builder is next.** The home screen renders `hasLists={false}` because
+there is no list model yet; building it unblocks the empty-state transition,
+the publish flow (decision 33) and the public page.
 
 Two entries in the old plan have since been overturned by evidence, so if you
 remember them differently, read the decisions rather than trusting memory:
@@ -108,6 +116,17 @@ remember them differently, read the decisions rather than trusting memory:
   address is the primary source; Google's pin is the lucky case.
 
 ## Known loose ends
+
+- `npx tsc --noEmit` in `apps/mobile` has **two pre-existing errors**:
+  `RealRexMark.tsx` destructures the viewBox without a null check, and
+  `theme.ts` infers the light palette's literal types and then rejects the dark
+  one. Neither breaks the build; both should be fixed before typecheck goes in
+  CI as a gate.
+- Spot ids are `tmp-<base36>` from a module counter. They need to be real
+  UUIDs before anything persists them.
+- The link expander logs `[expand] <via> <url>`. Whether short links resolve
+  via the `Location` header or the final URL decides whether the native
+  URLSession module in decision 17 needs to exist at all — **still unanswered**.
 
 - The brand mark is legible to about 56px. It needs a **simplified small-size
   variant** for favicons, and a **stroke-based redraw** before it can be
