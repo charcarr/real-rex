@@ -48,6 +48,35 @@ const palette = {
 // Layer 2 — semantic roles
 // ---------------------------------------------------------------------------
 
+/**
+ * The role contract.
+ *
+ * Declared, not inferred. `typeof light` made one palette the accidental
+ * specification, and because it is `as const` every role was typed as its own
+ * hex literal — which is why `dark` did not read as a second palette but as a
+ * type error. The roles are the contract; the hex values implement it.
+ *
+ * A role added here fails BOTH palettes until both define it. That is the
+ * point: a role only one scheme implements is a bug waiting for the other
+ * theme.
+ */
+export type ColorScheme = {
+  readonly background: string;
+  readonly surface: string;
+  readonly border: string;
+
+  readonly textPrimary: string;
+  readonly textSecondary: string;
+  readonly textMuted: string;
+
+  /** Fills, rings, icons, large numerals. NOT small text — see the rule below. */
+  readonly accent: string;
+  /** The only green permitted on small text against a light background. */
+  readonly accentText: string;
+  /** The rex is ink on light grounds and green on dark ones. */
+  readonly brandMark: string;
+};
+
 export const light = {
   background: palette.neutral50,
   surface: palette.neutral0,
@@ -57,13 +86,10 @@ export const light = {
   textSecondary: palette.neutral500,
   textMuted: palette.neutral400,
 
-  /** Fills, rings, icons, large numerals. NOT small text — see the rule below. */
   accent: palette.green500,
-  /** The only green permitted on small text against a light background. */
   accentText: palette.green600,
-  /** The rex is ink on light grounds and green on dark ones. */
   brandMark: palette.ink,
-} as const;
+} as const satisfies ColorScheme;
 
 export const dark = {
   background: palette.neutral950,
@@ -77,9 +103,7 @@ export const dark = {
   accent: palette.green400,
   accentText: palette.green400,
   brandMark: palette.green400,
-} as const;
-
-export type ColorScheme = typeof light;
+} as const satisfies ColorScheme;
 
 /**
  * CONTRAST RULE — do not break this without measuring.
