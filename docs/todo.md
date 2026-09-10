@@ -9,32 +9,21 @@ the description needs the word "and" twice, split it.
 
 ## 1. Database
 
-Nothing else can start until this lands. Decisions 19-23 settle the shape;
-decision 22 settles the access model.
+Done by hand in the Supabase dashboard, **not yet in migrations** — that
+happens before the App Store, not before the app (decision 10 is not currently
+true). `supabase db pull` needs Docker; hand-copying the DDL is fine.
 
-- [ ] Migration: helpers — `set_updated_at()`, and a slug generator producing
-      12 characters from an unambiguous alphabet (~60 bits).
-- [ ] Migration: `profiles`. Public-safe fields only. **Email stays in
-      `auth.users`** — a profiles table with a public-read policy is one bad
-      policy away from leaking addresses.
-- [ ] Migration: `saved_spots`. `title not null`, `short_note`, `long_note`,
-      `address`, `lat`/`lng` nullable, `place_ref`, `place_ref_type`
-      (`text` + check, not an enum), `source_url`.
-      `unique (user_id, place_ref)` for the duplicate-paste case.
-- [ ] Migration: `lists`. `slug` unique, `published_at` nullable. No cap on
-      rows per user (decision 7). No `pinned_at` — there is no profile screen
-      to pin anything on yet.
-- [ ] Migration: `list_items`. `position smallint check (position between 1 and
-5)` plus `unique (list_id, position)` — two constraints, no trigger, and
-      a sixth row becomes physically impossible.
-- [ ] Cross-user ownership made unrepresentable: `unique (id, user_id)` on
-      `lists` and `saved_spots`, then composite foreign keys from `list_items`
-      into both. Postgres refuses a mismatched pair even if a policy is wrong.
-- [ ] Every table: `enable row level security`, `revoke all … from anon`,
-      policies scoped to `auth.uid() = user_id`.
-- [ ] `get_list_by_slug(slug text)` — `security definer`, `set search_path =
-''`, returns a list only when published and the slug matches exactly.
-      Granted to `anon`; nothing else is.
+- [x] `list` and `list_item`, constraints, `moddatetime` triggers.
+- [x] `limits` — the circuit breaker. No row means no limits, which is the
+      intended resting state; nothing is set.
+- [x] RLS on all three, `anon` and `authenticated` revoked, `select` granted to
+      `authenticated`, one policy per table.
+- [x] Helpers: `generate_public_id()`, `slugify()`, `build_slug()`.
+- [ ] **The publish path is deliberately not built** (decision 33). It is
+      client-side when it happens, and it is weeks away — capture, the library
+      and the builder are all device-local. Decision 33 records the flow, the
+      window on the edit path, and what must stay server-side.
+- [ ] Capture the schema into `supabase/migrations/`.
 - [ ] `npm run db:types` and commit `database.types.ts`.
 
 ## 2. CI guards
@@ -55,17 +44,33 @@ Discipline that a machine enforces is the only kind that survives contributors.
 - [ ] **Enable exception autocapture on the PostHog project.** Error tracking
       does nothing until this is switched on (decision 9).
 
-## 4. Identity
+## 4. Identity and local storage
 
-- [ ] Anonymous sign-in created on the **first write**, not on first launch
-      (decision 16). Identity is metered; nothing is owned before a write.
+- [ ] **Local store first**: a single versioned JSON document in MMKV, behind
+      **one storage module**. Client-generated UUIDs and `created_at` /
+      `updated_at` on every record from version one — that is the whole
+      insurance policy for a later move to SQLite (decision 28).
+- [ ] One shared TypeScript type for a spot in `packages/shared`, with the
+      `list_items` row derived from it, so the document and the row cannot
+      drift (decision 30).
+- [ ] **Run `scripts/auth-link-test.mjs`** against a real stack. It answers the
+      id-preservation question by doing it, and prints what the reinstall clash
+      actually returns. Decision 29 rests on the first answer; the app has to
+      handle the second either way.
+- [ ] The publish-time choice: sign in with Apple, or publish anonymously.
+      Both offered plainly; copy states the real difference, not a pitch
+      (decision 29).
 - [ ] Session persisted in AsyncStorage, per Supabase's RN docs (decision 24).
-- [ ] A short onboarding that explains, honestly, that spots live on this
-      device until an account exists.
+- [ ] Sign in later from settings — `linkIdentity()` on the existing
+      anonymous user, so nothing is stranded.
+- [ ] Account deletion in the app, calling `delete_account()`.
 
 ## 5. Capture
 
-The riskiest part of the product, and the reason it works at all.
+The riskiest part of the product, and the reason it works at all. Under
+decision 28 every write here is **local** — the two-writes-per-spot shape from
+21 still holds, but the network is only needed to expand the link and geocode,
+never to store the row.
 
 - [ ] Native module: follow one redirect with `URLSession` and return the
       `Location` header **without following it**. React Native's `fetch`
@@ -87,27 +92,41 @@ The riskiest part of the product, and the reason it works at all.
 
 ## 6. Library and lists
 
+All of this is device-local until the publish step.
+
 - [ ] Library screen. Spots with no note are visibly incomplete — derived from
-      `short_note is null`, not a column.
+      `short_note` being empty, not a stored flag.
 - [ ] The editing pass: title, short note, long note.
-- [ ] List builder — toggle five spots on, reorder. Position is a slot, not a
-      ranking (decision 15).
-- [ ] Publish: set `published_at`, produce the URL, hand it to the share sheet.
+- [ ] Duplicate detection on `place_ref` in the local store — this was
+      `unique (user_id, place_ref)` in Postgres before decision 28.
+- [ ] List builder — five slots, reorder. Position is a slot, not a ranking
+      (decision 15), and it is now purely a device concern.
+- [ ] Per-list edits to a spot's copied fields (decision 30), seeded from the
+      library entry.
+- [ ] Publish: identity choice if needed, call `publish_list()`, wait for the
+      render, then hand the URL to the share sheet.
 
 ## 7. The public page
 
 - [ ] Rebuild `apps/web` in Astro, deployed to Cloudflare (decision 26).
-- [ ] **Publish-time render.** Publishing a list generates its HTML, its OG
-      image and its static map images, and writes them as static files. Views
-      never touch Supabase, so a viral list cannot take the database down.
-- [ ] Re-render on edit, and delete on unpublish.
+- [ ] **Render on demand behind a cache** (decision 32). A Worker route calls
+      `get_list_by_slug` on a cache miss, renders, and returns the page with a
+      long TTL. Nothing is written at publish, so there is no pipeline to
+      half-fail and no files to leave behind.
 - [ ] The Real Rex footer is a single toggle in the template (decision 27).
 - [ ] Build it from `design.md`. Disclosure is CSS only — no JavaScript on the
       page. The map is a static image, revealed rather than loaded, and only
       present when coordinates exist.
-- [ ] OG image generated at publish, not per request.
+- [ ] OG image generated at publish **on the device** and uploaded once — the
+      one thing kept out of the request path (decision 32).
 - [ ] Give the page a route back to the product. Currently anything
       screenshotted and forwarded is a dead end.
+- [ ] Purge the cached URL on publish, edit, unpublish and delete. Every write
+      function already returns the slug for exactly this.
+- [ ] Static map images: hosted tile providers are the one part of the
+      pipeline that is not free at volume. Generating them with MapKit
+      Snapshotter on the device and uploading at publish keeps it at zero.
+      See `monetisation.md`.
 
 ## 8. Ship
 
@@ -122,8 +141,10 @@ The riskiest part of the product, and the reason it works at all.
 
 - [ ] Assert the five-spot cap holds against a real Postgres — try to insert a
       sixth row and a duplicate position.
-- [ ] Assert a signed-in user cannot read another user's spots, and cannot put
-      someone else's spot on their own list.
+- [ ] Assert a signed-in user cannot read or modify another user's lists or
+      items.
+- [ ] Assert `publish_list()` is not executable by `anon`, and that
+      `unpublish` and delete purge the rendered files.
 - [ ] Assert `anon` with the publishable key cannot list published lists in
       bulk — only fetch one by exact slug.
 - [ ] Add each new real Maps link shape to the parser fixtures as it appears.
@@ -137,8 +158,9 @@ Recorded so nobody re-litigates them mid-build.
   the difference between pleasant and tedious in a five-spot burst, but it is
   native surface area (config plugin, App Group) and does not block a first
   build. v0 captures by paste.
-- Apple sign-in. Anonymous first; `linkIdentity()` later, no migration
-  (decision 16).
+- Uploading the spot library to Supabase — "back up your saved places" is the
+  honest pitch for an account, and it is additive because items are copies
+  (decisions 28, 30). Not needed to ship.
 - Android, Google sign-in.
 - Any friend graph. Distribution is the group chat (decision 5).
 - Pinned lists — no profile screen exists to pin on (decision 7).

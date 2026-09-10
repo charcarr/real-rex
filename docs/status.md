@@ -15,7 +15,7 @@ placeholder.
 | `apps/mobile` — Expo SDK 57 dev build         | builds and runs on the iOS simulator                      |
 | `packages/shared` — design tokens, brand mark | done                                                      |
 | Documentation                                 | README, CONTRIBUTING, CLAUDE.md, decisions ×27, design.md |
-| **Database**                                  | **not started**                                           |
+| **Database**                                  | live in Supabase, built by hand; not yet in migrations     |
 | Google Maps link parsing                      | done, tested against real links                           |
 | Auth, PostHog, geocoding, share extension     | not started                                               |
 
@@ -63,8 +63,19 @@ not re-hoist otherwise.
 ## What is decided
 
 Read [`decisions.md`](decisions.md) before proposing an architectural change —
-twenty-seven decisions are recorded there with their rejected alternatives, so you
+thirty-three decisions are recorded there with their rejected alternatives, so you
 can see what was already considered and why it lost.
+
+**Decisions 28-33 (2026-09-10) changed the data model. If you remember it
+differently, they win.** The device is the source of truth until publish, so
+Supabase holds only published lists — two tables, `lists` and `list_items`, no
+server-side `saved_spots` and no `profiles`. List items are **copies** of
+library spots, not references, so a published list is a snapshot. An auth user
+is created at publish, not at first write, and signing in with Apple is offered
+as a choice against publishing anonymously. There is no `publish_list()` — decision 31 was
+reversed by 33 and publishing will be written client-side. Public pages are rendered on demand behind a cache rather than written at
+publish (32). Cost control and monetisation detail moved to
+[`monetisation.md`](monetisation.md).
 
 [`design.md`](design.md) has the visual system. The values live in
 `packages/shared/src/tokens.ts` and are commented inline.
@@ -104,7 +115,14 @@ remember them differently, read the decisions rather than trusting memory:
 - The public list page has **no route back to the product**. The wordmark is a
   brand, not a destination; anything screenshotted and forwarded is a dead end.
 - Type scale has not been checked on a real device in daylight.
-- Nothing has been deployed. No Vercel project, no Supabase project.
+- Nothing has been deployed. No Vercel project, no Supabase project. **Turn
+  the Supabase Spend Cap on when the project is created** — see
+  [`monetisation.md`](monetisation.md).
+- `linkIdentity()` preserving the user id is unverified and decision 29 rests
+  on it. `scripts/auth-link-test.mjs` settles it; it needs a running stack.
+- The schema has only been proven against a stand-in `auth` schema, not a real
+  Supabase. Run `supabase/tests/schema_test.sql` against the local stack before
+  generating types.
 - `@types/node` is declared in `packages/shared` at `^20.19.43`, which is what
   npm had already hoisted. `engines` requires Node 22, so bump it to `^22`
   next time someone runs an install — types only, no runtime effect.

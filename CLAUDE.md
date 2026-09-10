@@ -26,7 +26,16 @@ says the same things at more length.
   and tutorials show the US host.
 - The five-spot cap is enforced structurally in Postgres, not in application
   code, and it is never a paywall.
-- There is no cap on the number of lists a user may create.
+- There is no cap on the number of lists a user may create. The `limits` row
+  is a circuit breaker for a viral event, not a pricing tier — see
+  `docs/monetisation.md`.
+- **The device is the source of truth until a list is published** (decision
+  28). Supabase holds two tables, `lists` and `list_items`, and only published
+  data. There is no server-side spot library.
+- **List items are copies, not references** (decision 30). A published list is
+  a snapshot; editing the library does not change pages already sent.
+- **Every publish goes through `publish_list()`** (decision 31). Clients never
+  insert into `lists` or `list_items`.
 - Mobile is Apple sign-in only at launch. Android and Google sign-in come later.
 
 ## Product feel
