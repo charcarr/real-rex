@@ -1,2 +1,2 @@
 export * from './tokens';
-export * from './mark';
+export * from './brand-mark';

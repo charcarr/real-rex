@@ -8,14 +8,11 @@ type Props = {
   color: string;
 };
 
-/** Aspect ratio of the drawing, so callers only ever pass a width. */
-const [, , markWidth, markHeight] = realRexMark.viewBox.split(' ').map(Number);
-
 export function RealRexMark({ size, color }: Props) {
   return (
     <Svg
       width={size}
-      height={(size * markHeight) / markWidth}
+      height={(size * realRexMark.height) / realRexMark.width}
       viewBox={realRexMark.viewBox}
       // The mark is decorative here; the headline next to it carries the name.
       accessibilityRole="image"
