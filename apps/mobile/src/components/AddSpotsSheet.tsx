@@ -82,7 +82,10 @@ export function AddSpotsSheet({ visible, spots, locating, onAdd, onClose }: Prop
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView
+          style={styles.avoider}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
           <View style={styles.sheet}>
             <View style={styles.grabber} />
 
@@ -103,12 +106,11 @@ export function AddSpotsSheet({ visible, spots, locating, onAdd, onClose }: Prop
                   placeholder="Paste a Google Maps link"
                   placeholderTextColor={theme.textMuted}
                   style={styles.input}
-                  autoFocus
                   autoCapitalize="none"
                   autoCorrect={false}
                   keyboardType="url"
                   returnKeyType="done"
-                  // Keeps the keyboard up between pastes.
+                  // Keeps the keyboard up between pastes, once it is up at all.
                   blurOnSubmit={false}
                   editable={!pending}
                   inputMode="url"
@@ -325,8 +327,20 @@ const makeStyles = (theme: ColorScheme) =>
       backgroundColor: 'rgba(10,10,11,0.55)',
     },
 
+    /**
+     * Bounded by the screen, so the padding the keyboard adds squeezes the
+     * sheet instead of pushing its top off the top of the display.
+     */
+    avoider: { flex: 1, justifyContent: 'flex-end' },
+
     sheet: {
+      // The height the sheet is drawn at, but it yields. `flexShrink` lets it
+      // give way when the keyboard leaves less room than this, and the
+      // maxHeight keeps a strip of backdrop visible above it either way — a
+      // sheet flush against the status bar reads as a screen, not a sheet.
       height: 640,
+      maxHeight: '88%',
+      flexShrink: 1,
       backgroundColor: theme.surface,
       borderTopLeftRadius: radius.xl,
       borderTopRightRadius: radius.xl,
@@ -389,7 +403,7 @@ const makeStyles = (theme: ColorScheme) =>
       marginTop: space.md,
     },
 
-    list: { marginTop: 18, borderTopWidth: 1, borderTopColor: theme.border },
+    list: { flex: 1, marginTop: 18, borderTopWidth: 1, borderTopColor: theme.border },
     listContent: { paddingBottom: space.lg },
 
     row: {
