@@ -5,9 +5,10 @@ Last updated 2026-09-10. Update this when the state below stops being true.
 ## Where the project is
 
 The scaffolding, tooling and design system are done and committed. The schema
-is live in Supabase and the mobile app has its first screen and its first real
-feature: paste a Google Maps link, get a place. **There is still no list model**
-— `hasLists` is hardcoded `false` — and the web app is still a placeholder.
+is live in Supabase, and the mobile app now does the whole loop except the last
+step: paste a Google Maps link, get a place; write a note about it; put five of
+them on a list, in an order you chose. **Publishing is stubbed** (decision 37)
+and the web app is still a placeholder, so nothing is live yet.
 
 | Area                                          | State                                                          |
 | --------------------------------------------- | -------------------------------------------------------------- |
@@ -20,8 +21,10 @@ feature: paste a Google Maps link, get a place. **There is still no list model**
 | **Database**                                  | live in Supabase, built by hand; not yet in migrations         |
 | Google Maps link parsing                      | done, tested against real links                                |
 | Geocoding                                     | done — `expo-location`, fills in whichever half the link lacks |
-| List model, builder, publish flow             | **not started — this is next**                                 |
-| Local persistence (MMKV)                      | not started; the library is `useState` and empties on reload   |
+| List model                                    | done, pure and unit-tested (decisions 34–35)                   |
+| List builder — slots, notes, drag to reorder  | done (decisions 34, 36)                                        |
+| Publish flow                                  | **stubbed** — state machine real, no URL (decision 37)         |
+| Local persistence (MMKV)                      | **not started — this is next.** Everything empties on reload   |
 | Auth, PostHog, share extension                | not started                                                    |
 
 ## Running it
@@ -101,9 +104,15 @@ Highlights that catch people out:
 
 The ordered task list lives in [`todo.md`](todo.md).
 
-**The list builder is next.** The home screen renders `hasLists={false}` because
-there is no list model yet; building it unblocks the empty-state transition,
-the publish flow (decision 33) and the public page.
+**Local persistence is next, and it is now the most visible gap.** The library
+and the lists are `useState` in `apps/mobile/app/index.tsx` and empty on
+reload, so the builder can be demonstrated but not used. One versioned JSON
+document in MMKV behind one storage module (decision 28); that one file is the
+only place either collection is held, which is what keeps the swap small.
+
+After that: real UUIDs (`src/id.ts` is the one place to change), then the
+Supabase client and identity, which is what turns decision 37's stub into a
+real URL.
 
 Two entries in the old plan have since been overturned by evidence, so if you
 remember them differently, read the decisions rather than trusting memory:

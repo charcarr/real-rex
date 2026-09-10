@@ -98,16 +98,23 @@ never to store the row.
 All of this is device-local until the publish step.
 
 - [ ] Library screen. Spots with no note are visibly incomplete — derived from
-      `short_note` being empty, not a stored flag.
-- [ ] The editing pass: title, short note, long note.
+      `short_note` being empty, not a stored flag. The builder's picker and its
+      rows already mark them; there is still no screen that lists the library
+      on its own.
+- [x] The editing pass: title, short note, long note. `NoteEditor`, reached by
+      tapping a row in the builder. The one line is capped at 80.
 - [ ] Duplicate detection on `place_ref` in the local store — this was
       `unique (user_id, place_ref)` in Postgres before decision 28.
-- [ ] List builder — five slots, reorder. Position is a slot, not a ranking
-      (decision 15), and it is now purely a device concern.
-- [ ] Per-list edits to a spot's copied fields (decision 30), seeded from the
-      library entry.
-- [ ] Publish: identity choice if needed, call `publish_list()`, wait for the
-      render, then hand the URL to the share sheet.
+      `spots.ts` does it in memory; it needs to survive the store.
+- [x] List builder — five slots, reorder. The list itself is the screen
+      (decision 34); drag is RN core only (decision 36). Nothing on the device
+      stores a position — the array's order is the order.
+- [x] Per-list edits to a spot's copied fields. Overrides while composing,
+      copies at publish (decision 35).
+- [ ] Publish: identity choice if needed, write the rows client-side
+      (decision 33), then hand the URL to the share sheet. **Stubbed** — the
+      three states and the fingerprint are real, the URL is a placeholder and
+      the screen says so (decision 37).
 
 ## 7. The public page
 

@@ -44,6 +44,10 @@ not here — nobody reads a decision log when their build is broken.
 | 31  | Publishing goes through one database function       | **reversed by 33**          |
 | 32  | Pages are rendered on demand behind a cache         | supersedes mechanism in 26  |
 | 33  | Publishing is written client-side, not in Postgres  | reverses 31                 |
+| 34  | The list itself is the builder                      | closes open item in 25      |
+| 35  | Items hold overrides while composing                | implements timing in 30     |
+| 36  | Reordering uses RN core, not a gesture library      |                             |
+| 37  | Publishing is stubbed, and says so on screen        | until todo 3, 4 and 7       |
 
 ---
 
@@ -948,3 +952,112 @@ obscure. Only the write function is gone.
 reordering are all device-local, so the publish path is weeks away. Deciding
 the write shape now would mean choosing between the version column and a
 server before knowing whether the server exists.
+
+---
+
+## 34. The list itself is the builder
+
+**Closes the open item in 25** — "editing the list with empty slots drawn in,
+versus picking from the library against a progress ring."
+
+**Decision.** The list is the screen. Five rows, always: filled ones show the
+spot, empty ones are drawn as empty slots. Tapping an empty slot opens the
+library; tapping a filled one opens its words. The list's title is the
+screen's one bold element.
+
+**Why.** Decision 25 makes the public page's row the fixed point, and this is
+that row with holes in it — nothing new is invented and nothing has to be
+learned twice. Drawing the empty slots makes the cap a shape you can see
+before you meet it, which is the same job the ring does on home. And you are
+looking at the thing you are making the entire time, so ordering is not a
+second step you have to be sent to.
+
+**Rejected.** _Library first, then order_ — two clear moments, but you never
+see the list until the end, and it needed a screen that exists only during
+creation. _One screen, two zones_ — list above, library below; honest, but at
+five rows the list is a third of the screen and the library is the rest, which
+reads as a library browser with a list attached.
+
+**The schema question is gone.** 25 recorded this as blocking the migration
+because the two shapes disagreed about when `position` is assigned. Decision
+28 removed the disagreement: nothing on the device stores a position at all.
+The array's order is the order, and positions are assigned once, at publish,
+when the rows reach Postgres.
+
+---
+
+## 35. A list item holds overrides while composing, and copies at publish
+
+**Implements the timing 30 stated but did not build.**
+
+**Decision.** On the device a list item is a spot id plus the fields _this
+list_ disagrees with — `title`, `short_note`, `long_note`, each null meaning
+"whatever the library says". They are resolved against the library for
+display, and frozen into real copies at publish, which is the row shape 30
+specifies.
+
+**Why.** 30's own preamble says the words live in one place while you are
+composing and are copied when you publish. Overrides are what makes that
+literally true: edit a note in your library and every draft that has not
+overridden it follows along, which is what a default is. Storing copies at
+add time would mean a library edit silently failing to reach a list you have
+not published yet, which is the confusing half of snapshot semantics without
+the reason for it.
+
+**Follows.** The note editor names the scope on screen rather than implying
+it, defaulting to the library, because writing "the garlic prawns" once and
+having it appear everywhere is the common case and editing five lists by
+accident is not recoverable by a user who did not know it happened.
+
+**The three states are derived, not stored.** A published list carries a
+fingerprint of the content as sent; comparing it to the current fingerprint is
+what tells _published_ from _published with unpublished edits_. No dirty flag
+anyone can forget to set, an edit that is undone correctly stops counting, and
+— because the fingerprint is taken over resolved content — editing a note in
+your library counts as an edit to every published list that inherits it, which
+it genuinely is.
+
+---
+
+## 36. Reordering uses React Native core, not a gesture library
+
+**Decision.** Drag-to-reorder is `PanResponder` and `Animated`. No
+`react-native-gesture-handler`, no `react-native-reanimated`.
+
+**Why.** The cap does the work. Five rows of one fixed height means "which
+slot is the finger over" is a division, and the whole gesture is a responder
+plus one animated value per slot — about 120 lines that we own and can read.
+Those libraries earn their keep on long lists with variable row heights, and
+neither is true here. Both are native dependencies, so both cost a prebuild
+and a place in `apps/mobile/package.json`.
+
+**Rejected.** `react-native-draggable-flatlist` and friends — smoother, and
+almost certainly right the day a screen has a long list on it. Adding them now
+would be paying for a ceiling the product constant says we will never reach.
+
+**When to reverse this.** The moment any list in this app is longer than a
+screen. Replace the component rather than growing it.
+
+---
+
+## 37. Publishing is stubbed, and says so on screen
+
+**Decision.** The publish button moves a list into the published state and
+hands over a placeholder URL — the repository — and the screen labels it
+`PLACEHOLDER — NOTHING IS LIVE YET`.
+
+**Why.** The builder needs its three states to be real to be worth reviewing,
+and the states are the part that can be built now: there is no Supabase
+client, no identity and no public page (todo 3, 4, 7). The alternative was
+minting a `realrex.app` link that 404s, which is a lie told by an app whose
+entire product is handing someone a link they can trust. If it is not live,
+the screen says so.
+
+**Everything around it is real.** The state machine, the fingerprint, the
+share sheet. Making it true is a change to `markPublished` and one URL.
+
+**The clipboard is deferred.** React Native core dropped `Clipboard`, so a
+true one-tap copy needs `expo-clipboard` — a native dependency, and one that
+caused a `PBErrorDomain` build failure last time it was linked while unused.
+The share sheet has Copy in it and is where this ends up anyway (todo 6), so
+it stands in until publishing is real.
