@@ -22,6 +22,7 @@ import {
 } from '@real-rex/shared';
 
 import { GettingStarted } from '../components/GettingStarted';
+import { ListRing } from '../components/ListRing';
 import { useTheme } from '../theme';
 
 /**
@@ -43,14 +44,28 @@ import { useTheme } from '../theme';
 
 const monoFamily = Platform.select({ ios: 'Menlo', default: 'monospace' });
 
-type Props = {
-  hasPlaces: boolean;
-  hasLists: boolean;
-  onPastePlace: () => void;
-  onCreateList?: () => void;
+/**
+ * One row on the home screen. Deliberately not a `List` -- home shows how many
+ * spots a list holds and whether it is out there, and nothing else, so it asks
+ * for exactly that. Decision 25 rejected showing the spots themselves.
+ */
+export type ListSummary = {
+  id: string;
+  title: string;
+  count: number;
+  state: 'draft' | 'published' | 'edited';
 };
 
-export function Home({ hasPlaces, hasLists, onPastePlace, onCreateList }: Props) {
+type Props = {
+  hasPlaces: boolean;
+  lists: ListSummary[];
+  onPastePlace: () => void;
+  onCreateList?: () => void;
+  onOpenList?: (id: string) => void;
+};
+
+export function Home({ hasPlaces, lists, onPastePlace, onCreateList, onOpenList }: Props) {
+  const hasLists = lists.length > 0;
   const theme = useTheme();
   const styles = makeStyles(theme);
 
@@ -110,7 +125,33 @@ export function Home({ hasPlaces, hasLists, onPastePlace, onCreateList }: Props)
 
       <Animated.View style={[styles.bodyWrap, { opacity: fade }]}>
         <ScrollView contentContainerStyle={styles.body}>
-          {hasLists ? null : <GettingStarted hasPlaces={hasPlaces} hasLists={hasLists} />}
+          {hasLists ? (
+            <View style={styles.rows}>
+              {lists.map((list) => (
+                <Pressable
+                  key={list.id}
+                  onPress={() => onOpenList?.(list.id)}
+                  accessibilityRole="button"
+                  style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+                >
+                  <ListRing filled={list.count} theme={theme} />
+                  <View style={styles.rowText}>
+                    <Text style={styles.rowTitle} numberOfLines={1}>
+                      {list.title.trim() === '' ? 'Untitled list' : list.title}
+                    </Text>
+                    <Text style={styles.rowSub} numberOfLines={1}>
+                      {statusLine(list)}
+                    </Text>
+                  </View>
+                  {/* Decision 25: a link on the row is what marks a list sent.
+                      No badge does the same job twice. */}
+                  {list.state === 'draft' ? null : <LinkIcon color={theme.textMuted} />}
+                </Pressable>
+              ))}
+            </View>
+          ) : (
+            <GettingStarted hasPlaces={hasPlaces} hasLists={hasLists} />
+          )}
         </ScrollView>
       </Animated.View>
 
@@ -146,6 +187,30 @@ export function Home({ hasPlaces, hasLists, onPastePlace, onCreateList }: Props)
     </SafeAreaView>
   );
 }
+
+/** The three states, said in words on the row rather than worn as a badge. */
+const statusLine = (list: ListSummary): string => {
+  const spots = `${list.count} ${list.count === 1 ? 'spot' : 'spots'}`;
+  if (list.state === 'draft') return spots;
+  if (list.state === 'published') return `${spots} · sent`;
+  return `${spots} · edited since you sent it`;
+};
+
+const LinkIcon = ({ color }: { color: string }) => (
+  <Svg
+    width={18}
+    height={18}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={color}
+    strokeWidth={1.75}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <Path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+    <Path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+  </Svg>
+);
 
 const makeStyles = (theme: ColorScheme) =>
   StyleSheet.create({
@@ -200,6 +265,30 @@ const makeStyles = (theme: ColorScheme) =>
 
     bodyWrap: { flex: 1 },
     body: { flexGrow: 1 },
+
+    /**
+     * The public page's row, with the ring where the numeral goes. Hairlines
+     * between, nothing around: the list of lists is the same object as the
+     * list of spots, one level up.
+     */
+    rows: { paddingHorizontal: space.lg + 4, paddingTop: space.sm },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.lg,
+      height: 78,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    rowPressed: { opacity: 0.6 },
+    rowText: { flex: 1, minWidth: 0 },
+    rowTitle: {
+      fontSize: fontSize.lg,
+      fontWeight: fontWeight.medium,
+      letterSpacing: letterSpacing.tight,
+      color: theme.textPrimary,
+    },
+    rowSub: { marginTop: 3, fontSize: fontSize.base, color: theme.textSecondary },
     /**
      * Top-aligned in both states. Centring floated the block in the middle of
      * a large void; anchored to the top it reads in the order it is read, and
