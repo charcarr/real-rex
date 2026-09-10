@@ -1,23 +1,28 @@
 # Status
 
-Last updated 2026-09-09. Update this when the state below stops being true.
+Last updated 2026-09-10. Update this when the state below stops being true.
 
 ## Where the project is
 
-The scaffolding, tooling and design system are done and committed. **There is
-no database and no app functionality yet.** Both apps run and render a
-placeholder.
+The scaffolding, tooling and design system are done and committed. The schema
+is live in Supabase and the mobile app has its first screen and its first real
+feature: paste a Google Maps link, get a place. **There is still no list model**
+— `hasLists` is hardcoded `false` — and the web app is still a placeholder.
 
-| Area                                          | State                                                     |
-| --------------------------------------------- | --------------------------------------------------------- |
-| Monorepo, npm workspaces, CI                  | done                                                      |
-| `apps/web` — Next.js 16                       | placeholder; to be rebuilt in Astro (decision 26)         |
-| `apps/mobile` — Expo SDK 57 dev build         | builds and runs on the iOS simulator                      |
-| `packages/shared` — design tokens, brand mark | done                                                      |
-| Documentation                                 | README, CONTRIBUTING, CLAUDE.md, decisions ×27, design.md |
-| **Database**                                  | **not started**                                           |
-| Google Maps link parsing                      | done, tested against real links                           |
-| Auth, PostHog, geocoding, share extension     | not started                                               |
+| Area                                          | State                                                          |
+| --------------------------------------------- | -------------------------------------------------------------- |
+| Monorepo, npm workspaces, CI                  | done                                                           |
+| `apps/web` — Next.js 16                       | placeholder; to be rebuilt in Astro (decision 26)              |
+| `apps/mobile` — Expo SDK 57 dev build         | home screen, add-spots sheet, geocoding, splash                |
+| Splash — native + animated brand line         | done; the two are matched so the handover is invisible         |
+| `packages/shared` — design tokens, brand mark | done                                                           |
+| Documentation                                 | README, CONTRIBUTING, CLAUDE.md, decisions ×27, design.md      |
+| **Database**                                  | live in Supabase, built by hand; not yet in migrations         |
+| Google Maps link parsing                      | done, tested against real links                                |
+| Geocoding                                     | done — `expo-location`, fills in whichever half the link lacks |
+| List model, builder, publish flow             | **not started — this is next**                                 |
+| Local persistence (MMKV)                      | not started; the library is `useState` and empties on reload   |
+| Auth, PostHog, share extension                | not started                                                    |
 
 ## Running it
 
@@ -63,8 +68,19 @@ not re-hoist otherwise.
 ## What is decided
 
 Read [`decisions.md`](decisions.md) before proposing an architectural change —
-twenty-seven decisions are recorded there with their rejected alternatives, so you
+thirty-three decisions are recorded there with their rejected alternatives, so you
 can see what was already considered and why it lost.
+
+**Decisions 28-33 (2026-09-10) changed the data model. If you remember it
+differently, they win.** The device is the source of truth until publish, so
+Supabase holds only published lists — two tables, `lists` and `list_items`, no
+server-side `saved_spots` and no `profiles`. List items are **copies** of
+library spots, not references, so a published list is a snapshot. An auth user
+is created at publish, not at first write, and signing in with Apple is offered
+as a choice against publishing anonymously. There is no `publish_list()` — decision 31 was
+reversed by 33 and publishing will be written client-side. Public pages are rendered on demand behind a cache rather than written at
+publish (32). Cost control and monetisation detail moved to
+[`monetisation.md`](monetisation.md).
 
 [`design.md`](design.md) has the visual system. The values live in
 `packages/shared/src/tokens.ts` and are commented inline.
@@ -83,8 +99,11 @@ Highlights that catch people out:
 
 ## Next
 
-The ordered task list lives in [`todo.md`](todo.md). The database is the next
-thing to write; everything else is blocked on it.
+The ordered task list lives in [`todo.md`](todo.md).
+
+**The list builder is next.** The home screen renders `hasLists={false}` because
+there is no list model yet; building it unblocks the empty-state transition,
+the publish flow (decision 33) and the public page.
 
 Two entries in the old plan have since been overturned by evidence, so if you
 remember them differently, read the decisions rather than trusting memory:
@@ -98,13 +117,31 @@ remember them differently, read the decisions rather than trusting memory:
 
 ## Known loose ends
 
+- `npx tsc --noEmit` in `apps/mobile` has **two pre-existing errors**:
+  `RealRexMark.tsx` destructures the viewBox without a null check, and
+  `theme.ts` infers the light palette's literal types and then rejects the dark
+  one. Neither breaks the build; both should be fixed before typecheck goes in
+  CI as a gate.
+- Spot ids are `tmp-<base36>` from a module counter. They need to be real
+  UUIDs before anything persists them.
+- The link expander logs `[expand] <via> <url>`. Whether short links resolve
+  via the `Location` header or the final URL decides whether the native
+  URLSession module in decision 17 needs to exist at all — **still unanswered**.
+
 - The brand mark is legible to about 56px. It needs a **simplified small-size
   variant** for favicons, and a **stroke-based redraw** before it can be
   animated — the limbs are currently one traced shape.
 - The public list page has **no route back to the product**. The wordmark is a
   brand, not a destination; anything screenshotted and forwarded is a dead end.
 - Type scale has not been checked on a real device in daylight.
-- Nothing has been deployed. No Vercel project, no Supabase project.
+- Nothing has been deployed. No Vercel project, no Supabase project. **Turn
+  the Supabase Spend Cap on when the project is created** — see
+  [`monetisation.md`](monetisation.md).
+- `linkIdentity()` preserving the user id is unverified and decision 29 rests
+  on it. `scripts/auth-link-test.mjs` settles it; it needs a running stack.
+- The schema has only been proven against a stand-in `auth` schema, not a real
+  Supabase. Run `supabase/tests/schema_test.sql` against the local stack before
+  generating types.
 - `@types/node` is declared in `packages/shared` at `^20.19.43`, which is what
   npm had already hoisted. `engines` requires Node 22, so bump it to `^22`
   next time someone runs an install — types only, no runtime effect.
