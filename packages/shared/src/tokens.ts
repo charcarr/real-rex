@@ -192,3 +192,13 @@ export const letterSpacing = {
  * for UI only and is NOT the thing that guarantees the rule.
  */
 export const MAX_SPOTS_PER_LIST = 5;
+
+/**
+ * The one line on the public page, capped so that what you type is what your
+ * friend reads rather than something the page decides to end with an ellipsis.
+ *
+ * STILL NOBODY'S NUMBER. It was invented while building the first note editor
+ * and has never been chosen. Worth setting against real notes before the
+ * first release.
+ */
+export const SHORT_NOTE_MAX = 80;
