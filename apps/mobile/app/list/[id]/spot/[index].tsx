@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -30,9 +30,14 @@ import { useTheme } from '../../../../src/theme';
  * draft stops matching the library and goes away again if you put it back.
  * Default is the place.
  *
- * Nothing is written until you leave. Backing out of the first question is a
- * save, not a cancel -- there is no draft state to keep and nothing here is
- * destructive.
+ * Nothing is written until you leave, and backing out of the first question
+ * is a save rather than a cancel -- there is no draft to keep and nothing
+ * here is destructive.
+ *
+ * Which is why the swipe back is off. It is the one way out that would not
+ * run the save, and silently dropping what someone just typed is worse than
+ * asking them to use the arrow. When storage lands this can write through on
+ * every keystroke and the gesture comes back.
  */
 export default function SpotRoute() {
   const { id, index, step } = useLocalSearchParams<{ id: string; index: string; step?: string }>();
@@ -78,44 +83,52 @@ export default function SpotRoute() {
     router.back();
   };
 
+  const frame = <Stack.Screen options={{ gestureEnabled: false }} />;
+
   if (asking === 1) {
     return (
-      <Question
-        eyebrowLead={String(slot + 1)}
-        eyebrow={spot.title.toUpperCase()}
-        question="What is this place?"
-        value={short}
-        onChangeText={setShort}
-        placeholder="The neighbourhood gelato spot."
-        maxLength={SHORT_NOTE_MAX}
-        onSubmit={() => setAsking(2)}
-        submitLabel="Next"
-        onBack={leave}
-        onSkip={() => setAsking(2)}
-        progress={0.5}
-      >
-        {asks ? <ScopeChoice scope={scope} onChange={setScope} styles={styles} /> : null}
-      </Question>
+      <>
+        {frame}
+        <Question
+          eyebrowLead={String(slot + 1)}
+          eyebrow={spot.title.toUpperCase()}
+          question="What is this place?"
+          value={short}
+          onChangeText={setShort}
+          placeholder="The neighbourhood gelato spot."
+          maxLength={SHORT_NOTE_MAX}
+          onSubmit={() => setAsking(2)}
+          submitLabel="Next"
+          onBack={leave}
+          onSkip={() => setAsking(2)}
+          progress={0.5}
+        >
+          {asks ? <ScopeChoice scope={scope} onChange={setScope} styles={styles} /> : null}
+        </Question>
+      </>
     );
   }
 
   return (
-    <Question
-      eyebrowLead={String(slot + 1)}
-      eyebrow={spot.title.toUpperCase()}
-      question="Why would you send someone here?"
-      value={long}
-      onChangeText={setLong}
-      placeholder="I recommend the dulce de leche and the peanut."
-      multiline
-      onSubmit={leave}
-      submitLabel="Done"
-      onBack={() => setAsking(1)}
-      onSkip={leave}
-      progress={1}
-    >
-      {asks ? <ScopeChoice scope={scope} onChange={setScope} styles={styles} /> : null}
-    </Question>
+    <>
+      {frame}
+      <Question
+        eyebrowLead={String(slot + 1)}
+        eyebrow={spot.title.toUpperCase()}
+        question="Why would you send someone here?"
+        value={long}
+        onChangeText={setLong}
+        placeholder="I recommend the dulce de leche and the peanut."
+        multiline
+        onSubmit={leave}
+        submitLabel="Done"
+        onBack={() => setAsking(1)}
+        onSkip={leave}
+        progress={1}
+      >
+        {asks ? <ScopeChoice scope={scope} onChange={setScope} styles={styles} /> : null}
+      </Question>
+    </>
   );
 }
 
