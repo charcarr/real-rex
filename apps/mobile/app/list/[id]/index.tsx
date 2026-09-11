@@ -101,6 +101,12 @@ export default function ListRoute() {
                 index={index}
                 expanded={openRow === index}
                 onToggle={() => setOpenRow(openRow === index ? null : index)}
+                onEdit={(step) =>
+                  router.push({
+                    pathname: '/list/[id]/spot/[index]',
+                    params: { id: list.id, index, ...(step === 2 ? { step: '2' } : {}) },
+                  })
+                }
                 theme={theme}
                 styles={styles}
               />
@@ -128,7 +134,18 @@ export default function ListRoute() {
         spots={availableSpots(list, spots)}
         onPick={(spotId) => {
           setPicking(false);
-          updateList(addSpot(list, spotId));
+          const next = addSpot(list, spotId);
+          updateList(next);
+
+          // A place you have already written about arrives finished, and
+          // nothing is asked. Only a wordless one gets the two questions.
+          const spot = spots.find((s) => s.id === spotId);
+          if (spot && (spot.shortNote ?? spot.longNote)) return;
+
+          router.push({
+            pathname: '/list/[id]/spot/[index]',
+            params: { id: list.id, index: next.items.length - 1 },
+          });
         }}
         onClose={() => setPicking(false)}
         onAddPlaces={() => {
@@ -159,6 +176,7 @@ function FilledRow({
   index,
   expanded,
   onToggle,
+  onEdit,
   theme,
   styles,
 }: {
@@ -166,26 +184,46 @@ function FilledRow({
   index: number;
   expanded: boolean;
   onToggle: () => void;
+  /** Which question to open on. The line is the first, the answer the second. */
+  onEdit: (step: 1 | 2) => void;
   theme: ColorScheme;
   styles: Styles;
 }) {
   return (
     <View style={styles.row}>
-      <Pressable
-        onPress={onToggle}
-        accessibilityRole="button"
-        accessibilityLabel={`${item.title}, spot ${index + 1}`}
-        style={({ pressed }) => [styles.head, pressed && styles.pressed]}
-      >
-        <Text style={styles.numeral}>{index + 1}</Text>
+      <View style={styles.head}>
+        <Pressable
+          onPress={onToggle}
+          accessibilityRole="button"
+          accessibilityLabel={`${item.title}, spot ${index + 1}`}
+          style={({ pressed }) => [styles.numeralTap, pressed && styles.pressed]}
+        >
+          <Text style={styles.numeral}>{index + 1}</Text>
+        </Pressable>
+
         <View style={styles.headText}>
-          <Text style={styles.name} numberOfLines={1}>
-            {item.title}
-          </Text>
-          <Text style={[styles.caption, !item.shortNote && styles.captionEmpty]} numberOfLines={2}>
-            {item.shortNote ?? 'What is it?'}
-          </Text>
+          <Pressable onPress={onToggle} style={({ pressed }) => pressed && styles.pressed}>
+            <Text style={styles.name} numberOfLines={1}>
+              {item.title}
+            </Text>
+          </Pressable>
+
+          {/* Open, the words are the buttons: tap the line to change the line.
+              Closed, the whole row is one target and opens it. */}
+          <Pressable
+            onPress={expanded ? () => onEdit(1) : onToggle}
+            accessibilityRole="button"
+            style={({ pressed }) => pressed && styles.pressed}
+          >
+            <Text
+              style={[styles.caption, !item.shortNote && styles.captionEmpty]}
+              numberOfLines={2}
+            >
+              {item.shortNote ?? 'What is it?'}
+            </Text>
+          </Pressable>
         </View>
+
         {/* A mark, not a control: this row has more behind it. */}
         {item.longNote && !expanded ? (
           <Svg
@@ -202,14 +240,18 @@ function FilledRow({
             <Path d="M4 17h9" />
           </Svg>
         ) : null}
-      </Pressable>
+      </View>
 
       {expanded ? (
-        <View style={styles.expanded}>
+        <Pressable
+          onPress={() => onEdit(2)}
+          accessibilityRole="button"
+          style={({ pressed }) => [styles.expanded, pressed && styles.pressed]}
+        >
           <Text style={[styles.answer, !item.longNote && styles.answerEmpty]}>
             {item.longNote ?? 'Why would you send someone here?'}
           </Text>
-        </View>
+        </Pressable>
       ) : null}
     </View>
   );
@@ -339,6 +381,7 @@ const makeStyles = (theme: ColorScheme) =>
       minHeight: 82,
       paddingVertical: space.md,
     },
+    numeralTap: { justifyContent: 'center' },
     headText: { flex: 1, minWidth: 0 },
 
     /** Large numerals are where green is allowed on a light ground. */
