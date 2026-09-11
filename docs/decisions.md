@@ -47,7 +47,12 @@ not here — nobody reads a decision log when their build is broken.
 | 34  | The list itself is the builder                      | closes open item in 25      |
 | 35  | Items hold overrides while composing                | implements timing in 30     |
 | 36  | Reordering uses RN core, not a gesture library      |                             |
-| 37  | Publishing is stubbed, and says so on screen        | until todo 3, 4 and 7       |
+| 37  | Publishing is stubbed, and says so on screen        | placement moved by 42       |
+| 38  | Every moment that asks for words is a whole page    | supersedes the sheet in 34  |
+| 39  | The list page edits nothing                         |                             |
+| 40  | Notes belong to the place; scope is asked rarely    | narrows 35                  |
+| 41  | Removing is a swipe, and there is no swap           |                             |
+| 42  | Publishing leaves the builder                       | moves the button in 37      |
 
 ---
 
@@ -1061,3 +1066,128 @@ true one-tap copy needs `expo-clipboard` — a native dependency, and one that
 caused a `PBErrorDomain` build failure last time it was linked while unused.
 The share sheet has Copy in it and is where this ends up anyway (todo 6), so
 it stands in until publishing is real.
+
+---
+
+## 38. Every moment that asks for words is a whole page
+
+**Decision.** The builder is a route, not a modal, and every point at which
+the app asks for words is a full screen with one question on it: an eyebrow,
+the question, the line you type on, and a button. No subtitles, no step
+counts, no field labels. A hairline at the foot carries progress.
+
+Naming a list is two of these ("What are you recommending?", "In a particular
+location?"). Writing about a place is two more ("What is this place?", "Why
+would you send someone here?").
+
+**Why.** The first builder was organised, correct and clinical. Every field it
+drew — the bordered input, the character counter, the labelled checkbox, the
+three lines of button copy — was another thing saying "this is a form". The
+brief Charley set is the opposite: a peaceful place to think, and a list that
+feels like a lovely touch to make.
+
+A question on its own page does two things a field cannot. It asks one thing
+at a time, so the answer gets attention. And it can afford to be a real
+question rather than a label — which is what makes the second spot question
+the most important screen in the app. "Why would you send someone here?" is a
+different act from describing a place, and it is the act the product exists
+for. The discipline is not the rule of five; it is being asked that, once per
+place, and meaning it.
+
+**Supersedes the sheet in 34.** The list is still the builder, and five slots
+are still always drawn. What changed is that the words are no longer written
+inside it.
+
+**Rejected.** Subtitles under each question (they clutter the page and the
+mind); a "1 of 2" counter (aggravating, and the hairline already says it);
+Typeform's full progress bar (same reason).
+
+---
+
+## 39. The list page edits nothing
+
+**Decision.** The list page is read-only. Numeral, name, the line underneath,
+a hairline between, and a mark on rows that carry a longer note. Tapping a row
+opens it in place to show the long note. Tapping the words in an open row is
+what edits them, and that takes you to the questions in 38.
+
+**Why.** Nothing on the page is a field, so nothing on it has to look like
+one. Three type sizes carry the whole hierarchy — the name at medium, the line
+below it, the answer below that — which is why there is no rule, box or indent
+anywhere on it. A page with no controls on it can be quiet in a way a page
+with controls cannot.
+
+**The affordance is learned, not seen.** Tapping text to edit it is the
+convention everywhere text is editable, and opening a row is already a
+deliberate second tap. This is the one place in the app where discoverability
+was traded for calm, knowingly.
+
+---
+
+## 40. Notes belong to the place, and scope is asked rarely
+
+**Decision.** Writing about a place writes to the library. Adding a place you
+have already written about puts it on the list finished, and asks nothing. The
+choice between "the place" and "just this list" appears only when you change
+words a place already had — it surfaces the moment the draft stops matching
+the library and disappears if you put it back. The default is the place, and
+choosing it also clears whatever that list was saying instead.
+
+**Why.** Charley: "that way forever and ever you're not always adding notes."
+A library whose whole point is writing once has to stop asking. The scope
+question is real exactly once — when there is an existing answer and the app
+cannot know whether you mean to change it everywhere — so that is the only
+time it is asked.
+
+**Narrows 35.** The override model is unchanged: an item holds a spot id plus
+the fields this list disagrees with, null meaning inherit. What changed is
+that the UI raises it as a question rather than presenting it as a permanent
+setting.
+
+**Rejected.** A labelled checkbox, then a filled pair of buttons, then plain
+text — settled on two outlined words, because the screen it sits on already
+carries an answer, a button and a skip, and only one of those may be loud.
+
+---
+
+## 41. Removing is a swipe, and there is no swap
+
+**Decision.** A spot comes off a list by swiping the row left. There is no
+swap: taking one off and adding another is the same two taps.
+
+**Why.** Removing was the only control left on a page that is otherwise words,
+and the iOS convention for it needs no control at all. Swap was a second idea
+for a job the first idea already did.
+
+**Long press was considered and rejected for editing.** Editing is the common
+act and removing the rare, destructive one, so it is removing that should cost
+effort. And long press is already spoken for by the drag-to-reorder in 36.
+
+**Untested, and the one thing to watch.** Swipe and reorder now share gesture
+space — press-hold-then-drag against drag-straight-off. Distinguishable in
+principle; unproven in the hand. Reorder is not wired into the new page yet.
+
+**No destructive colour exists.** The slab behind a swiped row is
+`textPrimary`, because the tokens have no destructive role. That role should
+exist before release.
+
+---
+
+## 42. Publishing leaves the builder
+
+**Decision.** There is no publish button on the list page. Sending a list
+becomes an action on its row on home.
+
+**Why.** Charley: the builder "should feel like a peaceful place to maintain a
+list and to be creative", and a large green button herding you towards
+publishing takes that away. Making and sending are two different moods, and
+putting both on one screen made the whole screen about the second one.
+
+**This moves the button in 37, not the reasoning.** Publishing is still
+stubbed and still says so; it is simply not stubbed _here_.
+
+**It touches 25.** That decision says the copy-link button appears only on
+sent lists and that its presence is what marks a list published. Send on
+drafts and a link on sent keeps that rule intact — but home now carries the
+product's central action, and that is worth deciding on purpose rather than
+inheriting.

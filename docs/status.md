@@ -5,10 +5,14 @@ Last updated 2026-09-10. Update this when the state below stops being true.
 ## Where the project is
 
 The scaffolding, tooling and design system are done and committed. The schema
-is live in Supabase, and the mobile app now does the whole loop except the last
-step: paste a Google Maps link, get a place; write a note about it; put five of
-them on a list, in an order you chose. **Publishing is stubbed** (decision 37)
-and the web app is still a placeholder, so nothing is live yet.
+is live in Supabase, and the mobile app makes and keeps lists: paste a Google
+Maps link, get a place; name a list; put five places on it and answer two
+questions about each. **Nothing is persisted and nothing is published.** Both
+are deliberate and both are next, in that order.
+
+The builder was rebuilt on branch `builder-flow` (decisions 38-42) after the
+first pass read as a form rather than a place to think. Publishing left the
+builder entirely while that happened.
 
 | Area                                          | State                                                          |
 | --------------------------------------------- | -------------------------------------------------------------- |
@@ -21,9 +25,10 @@ and the web app is still a placeholder, so nothing is live yet.
 | **Database**                                  | live in Supabase, built by hand; not yet in migrations         |
 | Google Maps link parsing                      | done, tested against real links                                |
 | Geocoding                                     | done — `expo-location`, fills in whichever half the link lacks |
-| List model                                    | done, pure and unit-tested (decisions 34–35)                   |
-| List builder — slots, notes, drag to reorder  | done (decisions 34, 36)                                        |
-| Publish flow                                  | **stubbed** — state machine real, no URL (decision 37)         |
+| List model                                    | done, pure and unit-tested (decisions 34–35, 40)               |
+| List builder — routes, questions, map, swipe  | done (decisions 38–42)                                         |
+| Drag to reorder                               | **built but not wired** — no home in the new page yet          |
+| Publish flow                                  | **removed from the builder** (decision 42); still stubbed      |
 | Local persistence (MMKV)                      | **not started — this is next.** Everything empties on reload   |
 | Auth, PostHog, share extension                | not started                                                    |
 
@@ -104,11 +109,20 @@ Highlights that catch people out:
 
 The ordered task list lives in [`todo.md`](todo.md).
 
-**Local persistence is next, and it is now the most visible gap.** The library
-and the lists are `useState` in `apps/mobile/app/index.tsx` and empty on
+**Run the builder on a device first.** Nothing on branch `builder-flow` has
+been exercised on hardware: the swipe to remove, the pin stagger on the map,
+and whether the keyboard covers a question on a small phone are all unknowns.
+The swipe also shares gesture space with the reorder in decision 36, which is
+why reorder is not wired into the new page yet.
+
+**Then local persistence, which is now the most visible gap.** The library and
+the lists are `useState` inside `apps/mobile/src/store.tsx` and empty on
 reload, so the builder can be demonstrated but not used. One versioned JSON
-document in MMKV behind one storage module (decision 28); that one file is the
-only place either collection is held, which is what keeps the swap small.
+document in MMKV behind one storage module (decision 28); the store is the
+only place either collection is held, which is what keeps the swap small. It
+also unlocks two things the UI is currently working around: the spot questions
+can write through on every keystroke, which lets the swipe-back gesture come
+back, and lists stop vanishing under an open screen.
 
 After that: real UUIDs (`src/id.ts` is the one place to change), then the
 Supabase client and identity, which is what turns decision 37's stub into a
@@ -126,11 +140,12 @@ remember them differently, read the decisions rather than trusting memory:
 
 ## Known loose ends
 
-- `npx tsc --noEmit` in `apps/mobile` has **two pre-existing errors**:
-  `RealRexMark.tsx` destructures the viewBox without a null check, and
-  `theme.ts` infers the light palette's literal types and then rejects the dark
-  one. Neither breaks the build; both should be fixed before typecheck goes in
-  CI as a gate.
+- `npx tsc --noEmit` in `apps/mobile` is clean, as are `expo lint` and
+  `format:check`. The two errors this file used to list are gone.
+- **There is no destructive colour in the tokens.** The slab behind a swiped
+  row borrows `textPrimary`. A real role belongs there before release.
+- **`SHORT_NOTE_MAX` is 80** and has never been chosen by anyone. It now lives
+  in `packages/shared/src/tokens.ts` where that is at least visible.
 - Spot ids are `tmp-<base36>` from a module counter. They need to be real
   UUIDs before anything persists them.
 - The link expander logs `[expand] <via> <url>`. Whether short links resolve
