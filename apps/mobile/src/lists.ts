@@ -62,6 +62,14 @@ export interface Publication {
 export interface List {
   id: string;
   title: string;
+  /**
+   * Where the list is, as the second question asked it. Null when skipped.
+   *
+   * Free text, not a geocoded place: it is enough to put a map under the
+   * headline and to label it, and not enough to be accurate. A picker would
+   * be a third question and a great deal more machinery.
+   */
+  place: string | null;
   description: string | null;
   /** Order is display order. Never longer than MAX_SPOTS_PER_LIST. */
   items: ListItem[];
@@ -98,11 +106,12 @@ const now = (): string => new Date().toISOString();
 
 const touch = (list: List): List => ({ ...list, updatedAt: now() });
 
-export function emptyList(title = ''): List {
+export function emptyList(title = '', place: string | null = null): List {
   const t = now();
   return {
     id: makeId('list'),
     title,
+    place: place !== null && place.trim() === '' ? null : place,
     description: null,
     items: [],
     createdAt: t,
@@ -178,6 +187,9 @@ export const isFull = (list: List): boolean => list.items.length >= MAX_SPOTS_PE
 // ---------------------------------------------------------------------------
 
 export const setTitle = (list: List, title: string): List => touch({ ...list, title });
+
+export const setPlace = (list: List, place: string): List =>
+  touch({ ...list, place: place.trim() === '' ? null : place });
 
 export const setDescription = (list: List, description: string): List =>
   touch({ ...list, description: description.trim() === '' ? null : description });

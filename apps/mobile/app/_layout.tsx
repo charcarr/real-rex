@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Splash } from '../src/components/Splash';
+import { StoreProvider } from '../src/store';
 
 // Hold the native splash until the animated one is actually on screen — Splash
 // hides it from its own `onShow`. Both sit on the same ground colour and put
@@ -21,11 +22,13 @@ export default function RootLayout() {
   }, [introDone]);
 
   return (
-    <View style={styles.root}>
-      <StatusBar style="auto" />
-      <Stack screenOptions={{ headerShown: false }} />
-      <Splash visible={!introDone} onDone={() => setIntroDone(true)} />
-    </View>
+    <StoreProvider>
+      <View style={styles.root}>
+        <StatusBar style="auto" />
+        <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }} />
+        <Splash visible={!introDone} onDone={() => setIntroDone(true)} />
+      </View>
+    </StoreProvider>
   );
 }
 
