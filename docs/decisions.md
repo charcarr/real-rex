@@ -310,29 +310,22 @@ why the unique constraint is deferrable.
 
 ## 16. Anonymous sign-in, created lazily
 
-> **Supersedes the launch timing in 8.** Apple is still the first real
-> provider; it is no longer a launch blocker.
+> **Supersedes the launch timing in 8. Its trigger is superseded by 29.**
 
-**Decision.** The device gets a Supabase _anonymous_ user on its **first
-write**, not on first launch. Apple is added later with `linkIdentity()` on the
-same user id.
+**Decision.** The device gets a Supabase anonymous user rather than meeting a
+signup wall. Apple is added later with `linkIdentity()` on the same user id.
 
-**Why.** It removes the signup wall from the moment of highest intent — the
-first paste — and there is no migration to write: RLS is authored once against
-`auth.uid()`, and the anonymous row simply becomes the Apple row.
+**Why.** No wall at the moment of highest intent, and no migration to write:
+RLS is authored once against `auth.uid()`, and the anonymous row simply becomes
+the Apple row.
 
-**Lazily, because identity is metered.** Supabase bills monthly active users
-($0.00325 beyond 100k). Creating one at launch charges you for everyone who
-opened the app and never made anything. Nothing is owned before the first
-write, so nothing needs an owner.
+**Lazily, because identity is metered.** Supabase bills monthly active users, so
+creating one at launch charges for everyone who opened the app and made nothing.
+29 moves the trigger from the first write to the first publish.
 
 **Rejected.** Local-only storage until signup (two data models, a migration
 later). A client-generated owner UUID (RLS could not use `auth.uid()`, so the
 boundary would rest on a value from a client we assume is hostile).
-
-**No cap on lists for anonymous users.** 7's reasoning does not change based on
-whether someone signed in.
-
 ---
 
 ## 17. Short links are expanded on the device, never on our servers
@@ -363,57 +356,34 @@ native module, not prototypable in JavaScript.
 primary source of coordinates. Google's pin is used when a link has one.
 
 **Why.** Nine real links shared from iOS Google Maps, four countries, both the
-Share and Copy paths: **none contained a coordinate.** They carry a name, a
-full street address and a feature id. Only desktop-browser URLs carry `!3d`/
-`!4d` pins.
+Share and Copy paths: **none contained a coordinate.** Only desktop-browser URLs
+carry `!3d`/`!4d` pins. Measured in `scripts/geocode-test.swift`: 9/9 resolved,
+and the one place where we hold Google's own pin came back 4 metres away.
 
-**Measured** (`scripts/geocode-test.swift`): **9/9 resolved**, and Bar But —
-the one place where we hold Google's own pin — came back **4 metres away**. One
-resolved as `24-26 Baker Street` rather than the restaurant, an address-level
-match. Usable, but it shows `MKLocalSearch` degrades silently from finding a
-business to geocoding its street.
-
-**So the title is always Google's, never MapKit's.** `item.name` must not
-overwrite it, or a list starts calling a restaurant "24-26 Baker Street". A
-sharp divergence between the two is the cheapest available signal that the pin
-is a building rather than the place.
+**So the title is always Google's, never MapKit's.** One link resolved to
+`24-26 Baker Street` rather than the restaurant — `MKLocalSearch` degrades
+silently from finding a business to geocoding its street, and `item.name` would
+start calling a restaurant by its address.
 
 **Rejected.** Google Geocoding API (billed and keyed — every fork would need an
-account); Nominatim/OSM (thin POI coverage for exactly the small bars this
+account). Nominatim/OSM (thin POI coverage for exactly the small bars this
 product is about).
 
 **Consequence.** `lat`/`lng` are nullable permanently. A spot without
 coordinates is publishable; the map just does not render.
 
-> **Amended 2026-09-10, once both link shapes had been seen in the app.** They
-> are exactly complementary, and each is missing what the other has:
+> **Amended 2026-09-10.** The two link shapes are exactly complementary, and
+> each is missing what the other has:
 >
 > |                     | name | address | coordinates |
 > | ------------------- | ---- | ------- | ----------- |
 > | expanded short link | yes  | —       | yes         |
 > | iOS share           | yes  | yes     | —           |
 >
-> **A user pastes one link, and it is whichever one they happen to have.** Both
-> shapes reach the app for an ordinary reason: the mobile share sheet produces
-> the second, and the first arrives second-hand — forwarded into WhatsApp by
-> someone who was at a laptop. Asking anyone to supply both is not a fallback,
-> it is a bug.
->
-> So geocoding is **required rather than corrective**, and it runs in whichever
-> direction the link left empty: forward from the address when there are no
-> coordinates, reverse from the coordinates when there is no address. Same
-> geocoder, and on iOS that is still MapKit — reached through `expo-location`
-> rather than a hand-written module, because the wrapper is first-party, does
-> both directions and is less code to own.
->
-> **This also closes an idea that looked appealing and is not.** Pasting the
-> same place both ways would produce a complete record, so a duplicate paste
-> could enrich the existing spot rather than being discarded. Nobody will ever
-> do that, and building for it would mean designing a flow that asks. The
-> duplicate stays what decision 21 says it is: "already in your library".
->
-> Failures stay silent. A spot that cannot be located is still a spot, and the
-> row keeps whatever the link gave it.
+> A user pastes whichever one they happen to have, so geocoding is **required
+> rather than corrective** and runs in whichever direction the link left empty.
+> Same geocoder, reached through `expo-location` rather than a hand-written
+> module. Failures stay silent: a spot that cannot be located is still a spot.
 
 ---
 
@@ -439,18 +409,14 @@ table if usage ever justifies one.
 
 ## 20. The note and the description live on `saved_spots`
 
-**Closes the item 15 deferred.**
+> **Superseded by 30**, which gives a published `list_item` its own copy.
 
-**Decision.** Both note fields are columns on `saved_spots`. `list_items`
-carries only `list_id`, `saved_spot_id`, `user_id` and `position`.
+**Decision.** Both note fields are columns on `saved_spots`; `list_items` carries
+only the reference and the position.
 
-**Why.** Write once, appears on every list the spot is on. One place to look
-when the words are wrong.
-
-**Rejected.** On `list_items` — different words per list is nicer, but means
-retyping a note every time you reuse a spot. Both with an override — flexible,
-two places to look, no evidence anyone wants it.
-
+**Why.** Write once, appears on every list the spot is on. 30 keeps that while
+composing and copies at publish — which removes the objection that killed
+per-list words here, namely retyping a note every time you reuse a spot.
 ---
 
 ## 21. Capture is a burst; editing is a separate pass
@@ -577,29 +543,22 @@ the product; this is where a user meets it.
 
 ---
 
-## 26. Astro on Cloudflare, rendered at publish
+## 26. Astro on Cloudflare
 
-> **Supersedes the framework and host in 6.** The separation stands.
+> **Supersedes the framework and host in 6. Its rendering mechanism is
+> superseded by 32.**
 
-**Decision.** `apps/web` is Astro, deployed to Cloudflare. A list page and its
-OG image are **generated when the list is published** and served as static
-files. Maps on the page are static images made the same way.
+**Decision.** `apps/web` is Astro, deployed to Cloudflare.
 
 **Why.** The page ships zero JavaScript by design — system fonts, and a
 disclosure that is CSS only — so a React framework would render static HTML for
-nothing. Taking React out of `apps/web` also ends the version-split hazard in 2. And publish-time rendering changes the economics: Cloudflare bills nothing
-for static assets, so views are free at any scale, and **Supabase is not in the
-read path**, so a viral list cannot take the database down with it. The failure
-shape matters more than the cents.
+nothing. Taking React out of `apps/web` also ends the version-split hazard in 2.
+And Cloudflare keeps **Supabase out of the read path**, so a viral list cannot
+take the database down with it. The failure shape matters more than the cents.
 
-**Rejected.** Next.js via OpenNext — the Adapter API landed in 16.2 and
-Cloudflare is a partner, so hosting works fine; it is simply a framework sized
-for an app we are not building. Hono (fine for one page, unpleasant by page
-three). SvelteKit (a second UI paradigm beside React Native).
-
-**Trade-off.** An edit regenerates the page, so a recipient's view is seconds
-behind rather than instant.
-
+**Rejected.** Next.js via OpenNext (hosting works fine; it is simply a framework
+sized for an app we are not building). Hono (fine for one page, unpleasant by
+page three). SvelteKit (a second UI paradigm beside React Native).
 ---
 
 ## 27. Monetisation posture
@@ -627,110 +586,83 @@ survivable. None of this is built until there is evidence anyone wants it.
 
 ## 28. The device is the source of truth until publish
 
-**Decision.** The spot library and unpublished lists live **only on the
-device**. Supabase holds exactly what has been published, and nothing else.
+**Decision.** The spot library and unpublished lists live **only on the device**.
+Supabase holds exactly what has been published, and nothing else.
 
-**Why.** A Supabase _anonymous user_ is as device-bound as local storage —
-no email, no password, no recovery. Delete the app and the session is gone and
-the rows are orphaned in Postgres forever. Storing the library server-side was
-therefore paying the full price of a server — metered identity, RLS surface, a
-table to get right — for none of the benefit a server exists to provide.
+**Why.** A Supabase _anonymous_ user is as device-bound as local storage — no
+email, no password, no recovery. Delete the app and the session is gone and the
+rows are orphaned forever. Storing the library server-side was paying the full
+price of a server — metered identity, RLS surface, a table to get right — for
+none of the benefit a server exists to provide. So the boundary moves to where a
+real difference appears: **data goes to the server when the server has a job to
+do**, which is serving a public page.
 
-So the boundary moves to where a real difference appears: **data goes to the
-server when the server has a job to do**, which is serving a public page.
+**What follows.** No server-side `saved_spots` and no `profiles`. The duplicate
+check from 21 becomes a device-side one. The published schema is `list` and
+`list_item`; 43 gives those their shape.
 
-**What follows.** The MVP schema is two tables, `lists` and `list_items`.
-There is no server-side `saved_spots` and no `profiles`. `unique (user_id,
-place_ref)` — the duplicate-paste case in 21 — becomes a device-side check.
+**Local storage is a single versioned JSON document in MMKV**, not SQLite. A few
+hundred spots do not need a query planner, and MMKV writes atomically — and
+synchronously, so the library is in hand before the first render rather than
+arriving a frame later. Two things make a later move to SQLite an afternoon
+rather than a project, and both are nearly free now: **client-generated UUIDs and
+`created_at` / `updated_at` on every record from version one**, and **one storage
+module** rather than storage calls spread across screens.
 
-**The five-spot cap is unaffected.** It is still a Postgres constraint on
-`list_items`, so nothing that reaches the public web can carry six. A draft on
-a device is not published, and the cap is a rule about lists, not about
-scratch space.
+**Rejected.** A server-side library behind an anonymous user (cost without
+benefit, above). `expo-sqlite` from the start (a second schema to maintain before
+anything queries it). AsyncStorage (asynchronous, so home would open empty and
+fill in a frame later).
 
-**Local storage is a single versioned JSON document in MMKV**, not SQLite.
-A few hundred spots do not need a query planner, and MMKV writes atomically.
-Two things make the later move to SQLite an afternoon rather than a
-migration project, and both are nearly free now: **client-generated UUIDs and
-`created_at` / `updated_at` on every record from the first version**, and
-**one storage module** rather than storage calls spread across screens.
-
-**Rejected.** Server-side library behind an anonymous user (today's model —
-cost without benefit, see above). `expo-sqlite` from the start (a second
-schema to maintain before anything queries it).
-
-**Closes the open design question in `design.md`** — whether
-`list_items.position` is assigned at insert or on save. Position is now a
-device concern; the server only ever receives a final ordered set of five.
+**Closes the open question in `design.md`** — position is now a device concern;
+the server only ever receives a final ordered set of five.
 
 ---
 
 ## 29. Identity is created at publish, and signing in is optional
 
-> **Supersedes the timing in 16.** Anonymous-first stands; the trigger moves
-> from the first write to the first publish.
+> **Supersedes the timing in 16.** Anonymous-first stands; the trigger moves from
+> the first write to the first publish.
 
 **Decision.** No auth user exists until someone publishes. At that moment they
-choose: **sign in with Apple, or publish anonymously.** Both are offered
-plainly; neither is the trap door.
+choose: **sign in with Apple, or publish anonymously.** Neither is the trap door.
 
 **Why here.** 16's real argument was that a signup wall does not belong at the
-moment of highest intent — the first paste. Under 28 the paste is free and
-local, so the argument is satisfied without a wall anywhere. Publishing is a
-deliberate "I am putting this on the internet" act, which is where an account
-question is expected rather than resented.
+moment of highest intent. Under 28 the paste is free and local, so that is
+satisfied without a wall anywhere — and publishing is a deliberate "I am putting
+this on the internet" act, which is where an account question is expected rather
+than resented.
 
-**Why optional.** The app should feel like a tool, not a funnel. Where we ask
-for something, the user should want to give it. So the choice is real, and the
-line we show is the true difference rather than a pitch:
+**Why optional.** The app should feel like a tool, not a funnel. So the choice is
+real, and the line we show is the true difference rather than a pitch:
 
 > Sign in and you can get this list back if you lose your phone.
 > Stay anonymous and this device is the only way to edit or delete it.
 
-**`linkIdentity()` is what makes anonymous honest.** It attaches an Apple
+**`linkIdentity()` is what makes anonymous honest** — it attaches an Apple
 identity to the existing anonymous user **keeping the same user id**, so lists
-published anonymously follow you when you sign in later. Anonymous is a
-deferral, not a dead end.
+published anonymously follow you when you sign in later.
 
-> **What is actually at stake, and how it is tested.** Not the data — the
-> device holds the library and the list contents, so a transfer to a new user
-> is always possible. What the device does not hold is **the slug**. If linking
-> mints a new user id, the URL already sent to eleven people dies at the exact
-> moment we asked the user to sign in, and `delete_account()` stops being true:
-> a set of published pages would survive, owned by a session no device can
-> reach.
+> **UNVERIFIED, AND THIS DECISION RESTS ON IT.** What is at stake is not the data
+> — the device holds that — but **the slug**. If linking mints a new user id, the
+> URL already sent to eleven people dies at the exact moment we asked someone to
+> sign in, and `delete_account()` stops being true. Supabase's documentation does
+> not say which happens, so `scripts/auth-link-test.mjs` finds out rather than
+> reasoning about it. **It has still never been run.**
 >
-> Supabase's documentation describes `linkIdentity()` without saying what
-> happens to the id, so `scripts/auth-link-test.mjs` does it and reports the
-> answer rather than reasoning about it.
->
-> **The case that needs handling either way is the reinstall.** Publish
-> anonymously, link Apple, reinstall, publish anonymously again, then try to
-> link the same Apple identity — which is taken. Linking must fail there. The
-> app signs in as the existing user and pushes the device's library up,
-> abandoning the throwaway anonymous user; the loss is small because that user
-> has published almost nothing.
+> **The reinstall needs handling either way.** Publish anonymously, link Apple,
+> reinstall, publish anonymously again, then try to link the same Apple identity
+> — which is taken. Linking must fail there; the app signs in as the existing
+> user and pushes the device's library up, abandoning the throwaway.
 
-**No billing saving.** An anonymous user is a real `auth.users` row and counts
-towards MAU exactly like an Apple user — Supabase counts a distinct user id per
-billing cycle on sign-in **or token refresh**, so an anonymous user who opens
-the app is billed every month, forever. What this decision buys is friction
-removal, which is worth buying on its own terms. What actually keeps the bill
-down is 26 and 28.
+**No billing saving** — an anonymous user is a real `auth.users` row and counts
+towards MAU like any other. This buys friction removal, not money;
+`monetisation.md` owns the cost story, and anonymous publishers get a low list
+cap there because anonymous publishing is a spam vector.
 
-**Unauthenticated visitors are not users.** The `anon` PostgREST role has no
-id and never reaches the auth server, so page views cost nothing at any volume
-— and under 26 they do not reach Supabase at all.
-
-**Accountability, since anonymous publishing is a spam vector.** Anonymous
-publishers get a low list cap (details in `monetisation.md`, which owns the
-limits). An admin unpublish — `published_at = null` plus a purge of the
-rendered files — exists from day one.
-
-**Rejected.** Requiring Apple sign-in to publish: one identity model, no
-`linkIdentity()`, no orphans, and published lists always recoverable — but it
-puts a wall at the exact moment we most want to feel effortless, and it saves
-nothing, because the MAU is charged either way.
+**Rejected.** Requiring Apple sign-in to publish: one identity model and no
+orphans, but a wall at the exact moment we most want to feel effortless, and it
+saves nothing because the MAU is charged either way.
 
 ---
 
@@ -779,62 +711,43 @@ server row cannot drift.
 
 ## 31. Publishing goes through one database function
 
-**Decision.** `publish_list(...)` — `security definer`, `set search_path = ''`,
-granted to `authenticated` only. It generates the slug, replaces the item set
-atomically, validates, and sets `published_at`. Clients never insert into
-`lists` or `list_items` directly.
+> **Reversed by 33.** `publish_list` was written, tested and then removed.
 
-**Why.** Publishing is a transaction — a list, up to five items, a slug — and
-one round trip that either fully happens or does not is both simpler than
-orchestrating it client-side and the only version that cannot leave a
-half-published list behind. Constraints that matter are enforced in the
-database (principle 4), and this is the one place every publish passes through.
+**Decision, as taken.** `publish_list(...)` — `security definer`, granted to
+`authenticated` only — generating the slug, replacing the item set atomically,
+validating, and setting `published_at`.
 
-It is also where a limit belongs if one is ever needed. **A cap in the client
-requires an App Store submission to change; a cap in this function is a SQL
-update that takes effect immediately.** `monetisation.md` owns what those
-limits are and when they turn on; this decision only records that the
-enforcement point exists and that it is server-side.
+**Why it was taken.** Publishing is a transaction, and one round trip that either
+fully happens or does not cannot leave a half-published list behind. It is also
+the one place a limit could be changed by a SQL update rather than an App Store
+submission.
 
-**Unpublishing keeps the row.** `published_at = null`, slug retained, so a
-re-publish reuses the URL and links already sent keep working. Deleting a list
-is a separate, real delete — and both paths must purge the rendered files.
+**Why it went.** See 33 — not correctness, maintainability. 43 recovers the
+atomicity without the function.
 
-**22 is unchanged.** `anon` still executes exactly one function,
-`get_list_by_slug`; `publish_list` is `authenticated` only. The CI guard keeps
-asserting the `anon` set is exactly `{get_list_by_slug}`.
-
-**Rejected.** Client-side inserts with RLS policies doing the work — fewer
-moving parts on day one, but no atomicity, the slug generated somewhere a
-hostile client can influence, and nowhere to put a limit later that does not
-ship in a binary.
-
+**Unpublishing keeps the row**, and that survives: slug retained, so a re-publish
+reuses the URL and links already sent keep working. Deleting a list is a separate
+real delete.
 ---
 
 ## 32. Pages are rendered on demand behind a cache
 
 > **Supersedes the mechanism in 26, not its reasoning.** Astro on Cloudflare
-> stands. Views still cannot take the database down. What changes is that
-> nothing is written at publish time.
+> stands; what changes is that nothing is written at publish time.
 
 **Decision.** A visitor hits `/l/:slug`. On a cache miss a Worker calls
 `get_list_by_slug`, renders the page and returns it with a long TTL; publish,
-edit and delete purge that URL. No files are produced at publish. Publishing is
-one database call and nothing else.
+edit and delete purge that URL. No files are produced at publish.
 
-**Why.** 26 proposed rendering at publish and writing static files, which needs
-a write pipeline, and a write pipeline can half-fail: `publish_list()` succeeds,
-the render dies, and now a row is marked published with no page behind it — a
-broken URL that has already been sent. Repairing that honestly costs a
-`rendered_at` column, a retry sweep, an object store, and a purge-on-delete
-path for the files.
+**Why.** 26 proposed rendering at publish and writing static files, which needs a
+write pipeline, and a write pipeline can half-fail: the publish succeeds, the
+render dies, and a row is marked published with no page behind it — a broken URL
+that has already been sent. Repairing that honestly costs a `rendered_at` column,
+a retry sweep, an object store and a purge path.
 
 Rendering on demand deletes all of it, and the reason is not effort. **The page
-exists the instant the row does, by construction.** There is no second source
-of truth, so there is nothing to fall out of sync.
-
-**Compare the failure shapes**, which is the language 26 used to choose in the
-first place:
+exists the instant the row does, by construction.** No second source of truth, so
+nothing can fall out of sync.
 
 |                       | rendered at publish | rendered on demand                         |
 | --------------------- | ------------------- | ------------------------------------------ |
@@ -842,124 +755,59 @@ first place:
 | Supabase is down      | pages serve         | cached pages serve; a brand-new list fails |
 | a list goes viral     | free                | one database hit per PoP per TTL           |
 
-Every failure becomes "slightly stale" rather than "broken", and 26's actual
-goal survives: the cache absorbs the traffic, so the database sees a trickle
-regardless of how popular a list gets.
+Every failure becomes "slightly stale" rather than "broken", and 26's goal
+survives: the cache absorbs the traffic.
 
-**The cost, stated plainly.** Static asset requests on Cloudflare are free and
-unlimited; a Worker route is billed per invocation — 100,000 a day free, then
-$5 a month. So pre-rendering is free at any scale and this is not. At 100,000
-views a day, five dollars is not the problem we will have.
+**The cost, stated plainly.** Static assets on Cloudflare are free and unlimited;
+a Worker route is billed per invocation — 100,000 a day free, then $5 a month. At
+that volume, five dollars is not the problem we will have. And it is cheap to get
+wrong: moving to pre-rendered files later is a web-only change with no mobile
+rework.
 
-**Why this is a cheap decision to get wrong.** The mobile app's only job is
-calling `publish_list()`. Moving to pre-rendered files later is a web-only
-change with no mobile rework, so this defers the web decision rather than
-making it.
+**Rejected.** Pre-rendering to R2 with `rendered_at` and a retry sweep — correct,
+and free at any scale, but it buys that with a moving part whose failure mode is
+a dead link.
 
-**Rejected.** Pre-rendering to R2 with `rendered_at` and a retry sweep — free
-at any scale, and correct, but it buys that with a moving part whose failure
-mode is a dead link. Revisit if traffic ever makes the Worker bill interesting.
-
-**The OG image is the exception** and is still generated at publish, on the
-device, and uploaded once. It is immutable per version, image rendering is the
-fiddliest thing to do in a Worker, and a missing OG image degrades to "no
-preview thumbnail" rather than to a broken page — so it does not belong in the
-request path.
+**The OG image is the exception**, still generated at publish, on the device, and
+uploaded once. It is immutable per version, image rendering is the fiddliest
+thing to do in a Worker, and a missing one degrades to "no preview thumbnail"
+rather than to a broken page.
 
 ---
 
 ## 33. Publishing is written client-side, not as a Postgres function
 
-> **Reverses 31.** `publish_list` was written, tested and then removed. This
-> entry records why, and what the publish flow should be when it is built —
-> which is not yet.
+> **Reverses 31.** 43 settles the write shape this entry left open.
 
-**Decision.** There is no `publish_list` function. The publish path will be
-written in the client, against tables, RLS policies and column grants. If it
-ever needs a real transaction, it moves to a server we own — not back into the
-database.
+**Decision.** There is no `publish_list` function. The publish path is written in
+the client, against tables, RLS policies and column grants.
 
-**Why.** Not correctness: the function was correct, atomic and cheap
-(~0.2ms per publish). It was rejected on **maintainability**, which is
-principle 1 and outranks the rest. Eighty lines of plpgsql carrying the limit
-checks, the upsert, the slug rebuild and the item swap is the most complex
-logic in the product, and it lived somewhere you cannot set a breakpoint, step
-through, or read in a pull request without going looking for it. Putting it in
-a migration fixes the version control and not the obscurity.
+**Why.** Not correctness: the function was correct, atomic and cheap. It was
+rejected on **maintainability**, which is principle 1 and outranks the rest.
+Eighty lines of plpgsql carrying the limit checks, the upsert, the slug rebuild
+and the item swap is the most complex logic in the product, and it lived
+somewhere you cannot set a breakpoint, step through, or read in a pull request
+without going looking for it. Putting it in a migration fixes the version control
+and not the obscurity.
 
 Stated as the rule: **logic this complex does not live somewhere invisible.**
 
-**What we verified while deciding, so nobody re-derives it**
+**Verified while deciding, so nobody re-derives it.** PostgREST runs one
+transaction per request and cannot hold one open across requests — a documented
+non-goal, not a gap. A single data-modifying CTE cannot replace the item set
+either: unique constraints are checked across the whole statement, so `delete` +
+`insert` on `list_item` fails with `23505`. And a client cannot send arbitrary
+SQL through PostgREST by design, so over this transport "one query from the
+client" and "a stored function" are the same object — which is why the fallback
+was a server rather than a cleverer query.
 
-- **PostgREST runs one transaction per request** and has no mechanism to hold
-  one open across requests. This is a documented non-goal, not a gap.
-- **A single SQL statement cannot do it either.** Data-modifying CTEs share one
-  snapshot, but unique constraints are checked across the whole statement, so
-  `delete` + `insert` on `list_item` in one CTE fails with `23505` against
-  `list_item_position_unique`. Tested. Replacing the item set genuinely needs
-  two statements in one transaction.
-- And a client cannot send arbitrary SQL through PostgREST by design — the
-  only way to send a multi-statement query is to name it, which is what a
-  function is. So over this transport, "one query from the client" and "a
-  stored function" are the same object. That is why the fallback is a server,
-  not a cleverer query.
+**What the client is not trusted with.** Ownership and the limits go in RLS
+`with check`; `public_id` and `slug` are not client-writable, enforced by column
+grants rather than intention. The five-spot cap and the item shape are already
+constraints and need nothing.
 
-**The flow to build, when the publish button exists**
-
-_First publish is safe client-side._ Three requests, and nothing is visible
-until the last one:
-
-```
-POST  /list        one row
-POST  /list_item   the array of up to five — one request, one transaction
-PATCH /list        published_at = now()
-```
-
-_Editing a live list is the only unsafe path._ `DELETE` the items then `POST`
-the new ones leaves a window where the live page has no spots, and a request
-landing in it caches an empty page for the whole TTL. Two ways to close it,
-decided at the time:
-
-1. **A `version` column.** Insert the new items at version N+1, then `PATCH`
-   `list.live_version` — one statement, atomic, no window. Costs a column, a
-   changed unique constraint `(list_id, version, position)`, a filter on every
-   public read, and a cleanup path for old versions.
-2. **A server.** One connection, `begin / delete / insert / commit`. This is
-   the option that motivated the decision, and the preferred one if a server
-   exists for any other reason by then.
-
-_Accept the window_ only knowingly. It is short and rare; it is not nothing.
-
-**What the client must NOT be trusted with, and where that is enforced**
-
-- **Ownership and the limits** go in RLS `with check` — a client can skip
-  calling a helper, it cannot skip a policy:
-  ```sql
-  with check (
-    (select auth.uid()) = user_id
-    and not coalesce((select publishing_paused from public.limits), false)
-  )
-  ```
-- **`can_publish()`** is worth adding as a small read-only function, but as
-  **UX only** — so the app can grey out the button and say why, rather than
-  letting someone tap and catch an error. It is not enforcement.
-- **`public_id` and `slug`** should not be client-writable. `public_id` has a
-  default; `slug` wants a `before insert or update` trigger building it from
-  the title, so a client cannot choose its own URL. Use column-level grants
-  (`grant insert (title, description, client_ref) on public.list`) so a new
-  column is not writable by default.
-- **The five-spot cap and the item shape** are already constraints and need
-  nothing.
-
-**What stays.** The tables, their constraints, both `select` policies, the
-`limits` table, and the slug helpers. All of that is correct and none of it is
-obscure. Only the write function is gone.
-
-**Not built yet, deliberately.** Capture, the library, the builder and
-reordering are all device-local, so the publish path is weeks away. Deciding
-the write shape now would mean choosing between the version column and a
-server before knowing whether the server exists.
-
+**This entry offered two ways to make an edit atomic — a `version` column, or a
+server. 43 takes the first.**
 ---
 
 ## 34. The list itself is the builder
@@ -1198,141 +1046,101 @@ inheriting.
 
 ## 43. Publishing moves a pointer over versioned items
 
-> **Supersedes the two-table shape in 28, and settles what 33 left open.** 33
-> wrote publishing client-side and accepted that it could not be atomic. This
-> is how it becomes atomic anyway, without a function and without a server.
+> **Supersedes the two-table shape in 28, and takes the first of the two options
+> 33 left open.** No function, and no server.
 
 **Decision.** `list_item` gains a `version`. `list` gains `live_version`, which
-points at the version the world sees and is the only thing that makes a list
-public. Publishing is two requests:
+points at the version the world sees and is the only thing making a list public.
+Publishing is two requests:
 
 1. write the item set at version N+1, where nothing points at it;
 2. `update list set live_version = N + 1 where id = ? and live_version = N`.
 
-Rows above `live_version` are the draft, and are mutable. Rows at or below it
-are frozen, forever.
+Rows above `live_version` are the draft and are mutable. Rows at or below it are
+frozen, forever.
 
-**Why.** The requirement was never "one transaction" -- it was that **a reader
-never sees a torn list**. Atomicity was a mechanism reached for, and naming the
-end rather than the means is what let another answer into the room.
+**Why.** The requirement was never "one transaction" — it was that **a reader
+never sees a torn list**. Naming the end rather than the means is what let
+another answer in.
 
-Re-publishing is where it actually bites. A failed first publish leaves an
-orphan nobody has the link to; a failed _re_-publish, done as delete-then-insert,
-empties a URL already sent to eleven people. The second is the failure worth
-designing against, and it only appears once editing exists.
+Re-publishing is where it bites. A failed first publish leaves an orphan nobody
+has the link to; a failed _re_-publish, done as delete-then-insert, empties a URL
+already sent to eleven people. That failure only appears once editing exists.
+Step 1 above is harmless while nothing points at it; step 2 is a single-row
+update, which Postgres makes atomic for free. (33 records why no client-side
+transaction is available over PostgREST.)
 
-Verified while deciding, so nobody re-derives it: PostgREST runs one transaction
-per request and cannot hold one open across requests, and a single data-modifying
-CTE cannot replace the item set either, because unique constraints are checked
-across the whole statement -- tested, `23505` against `list_item_position_unique`.
-So rather than find a transaction, this stops needing one. Step 1 is harmless
-while nothing points at it. Step 2 is a single-row update, which Postgres makes
-atomic for free.
-
-**What falls out, unpaid for**
-
-- **Compare-and-swap.** `where live_version = N` turns two devices editing one
-  list into a detected conflict rather than a lost write.
-- **History**, which answers "are people publishing edits?" and makes going back
-  a version a single-row update.
-- **Backup and sync, once sign-in exists.** Pushing draft rows at a version
-  nobody points at is _already_ the safe half of publishing, so drafts can sync
-  across devices without the public page moving, and publishing becomes a pointer
-  flip over rows that are already there. Charley's observation, and the strongest
-  argument for the shape.
-- **The five-spot cap gets stronger.** `unique (list_id, version, position)` with
-  `position between 1 and 5` makes a sixth row unrepresentable.
+**What falls out, unpaid for.** Compare-and-swap, so two devices editing one list
+is a detected conflict rather than a lost write. History, which answers "are
+people publishing edits?". And once sign-in exists, **backup and sync** — pushing
+draft rows at a version nobody points at is already the safe half of publishing,
+so drafts sync across devices without the public page moving. The five-spot cap
+also gets stronger: `unique (list_id, version, position)` with
+`position between 1 and 5` makes a sixth row unrepresentable.
 
 **Rejected: the item set as a `jsonb` array on the list row.** One request, no
-versions, no orphans -- the aggregate becomes one row, and single-row atomicity
-plus MVCC readers give the guarantee for nothing. Rejected because it trades
-typed columns, per-field constraints and validated schema evolution on the most
-important data in the product for a write-path convenience, on a schema that is
-already wide and will get wider. Stated as the rule: **the transport does not get
-to choose the data model.**
+versions, no orphans — the aggregate becomes one row and single-row atomicity
+gives the guarantee for nothing. Rejected because it trades typed columns,
+per-field constraints and validated schema evolution on the most important data
+in the product for a write-path convenience, on a schema already wide and getting
+wider. Stated as the rule: **the transport does not get to choose the data
+model.**
 
-**Rejected: `publish_list()`** (31, reversed by 33) and **a server of our own**
-(33's escape hatch). Neither is needed now, and 33's reasoning stands.
-
-**Cost accepted.** Publishing is two requests, not one. `list_item` grows by up
-to five rows per edit, so a pruning policy will eventually be wanted and is
-deliberately not written now. A marshalling layer between the device document and
-the rows has to exist.
+**Cost accepted.** Publishing is two requests. `list_item` grows by up to five
+rows per edit, so a pruning policy will eventually be wanted and is deliberately
+not written now. A marshalling layer between the device document and the rows has
+to exist.
 
 **The schema stays hand-managed in the dashboard until the first App Store
-submission**, and is dumped into migrations then. With no customers and no data,
-carrying migrations costs more than it protects; decision 10 takes effect at the
-dump, and the window where reconciling by hand is cheap closes with the first
-real user.
-
-**Drift resolved in the same move:** `description` dropped (the builder has no
-list description), `place` added (the second question had nowhere to land),
-`place_ref` / `place_ref_type` added so the database agrees with the device about
-what a duplicate place is, and `limits.id` made an actual singleton -- a boolean
-primary key allows two rows.
+submission**, and is dumped into migrations then; with no customers and no data,
+carrying migrations costs more than it protects. Resolved in the same move:
+`description` dropped, `place` added, and `limits.id` made an actual singleton —
+a boolean primary key allows two rows.
 
 ---
 
 ## 44. The second question asks for disclosure, not a case
 
 > **Rewords the second of the two spot questions in 38.** The rule that every
-> moment asking for words gets a whole page is unchanged; this is what the page
-> says.
+> moment asking for words gets a whole page is unchanged.
 
 **Decision.** "Why would you send someone here?" becomes **"What else would you
-like to share?"** The placeholder beneath it carries a real example, keyed by the
-spot so it is stable for a place and varied across the library.
+like to share?"**, with a placeholder carrying a real example, keyed by the spot.
 
-**Why.** 38 called the second question the product: the opportunity is to make
-someone stop and think about why they would send a person here. The wording
-undercut it. **"Why would you send someone here?" asks for a justification, and
-people answer justifications defensively** -- with reasons a stranger would
-accept. Great coffee. Good for groups. Worth the price. That is a review, and
-reviews are what the app exists instead of.
+**Why.** 38 called this question the product. The wording undercut it: **"Why
+would you send someone here?" asks for a justification, and people answer
+justifications defensively** — with reasons a stranger would accept. Great
+coffee. Good for groups. That is a review, and reviews are what the app exists
+instead of.
 
-The lines Charley actually wants are not reasons at all:
+The lines worth having are not reasons at all:
 
+> We go here after work on Wednesdays, it's also where Patrick and I had our
+> first date.
 > Book a table, it fills up fast.
-> This is where Andrew and I went on our first day.
-> I come here to read after work.
 > Gina is the best instructor here, but honestly go anytime.
 
-Every one is **disclosure** -- something true about the writer rather than about
-the place. So the question stopped asking about the place, and started asking
-what they would pass on.
+Every one is **disclosure** — true about the writer, not the place.
 
-**It stays a wh-question, and that is the anti-skip mechanism.** The goal Charley
-set is that people stop, think and write something rather than move on -- and the
-screen has a Skip button on it. A wh-question presupposes an answer exists: you
-cannot reply "no", only answer or actively refuse. A yes/no question hands out the
-exit in the wording itself, before the button does.
+**It stays a wh-question, and that is the anti-skip mechanism.** The goal is that
+people stop, think and write something, and the screen has a Skip button on it. A
+wh-question presupposes an answer exists: you cannot reply "no", only answer or
+actively refuse. **"else" does opposite things in the two grammars** — in a
+wh-question it presupposes there _is_ more; in a yes/no question the same word
+licenses "nothing, thanks."
 
 **No pronoun, on purpose.** "What would you tell them?" was the first choice and
-Charley rejected it: at that moment the list has not been sent, so there is no
-them to point at. The fix that would have kept it was to let the eyebrow carry the
-antecedent -- until the code showed **the eyebrow is already the place name**, with
-the green numeral beside it, and displacing it costs the one thing on screen
-saying which place you are writing about. Dropping the pronoun solves it with
-nothing added, and "share" is the verb the product already runs on.
+was dropped because at that moment the list has not been sent, so there is no
+them to point at. Letting the eyebrow carry the antecedent would have fixed it,
+except the eyebrow is already the place's name — and that is the one thing on
+screen saying which place you are writing about.
 
-**"else" does opposite things in the two grammars**, which is the whole reason
-this wording works where "Anything else to share?" did not. In a wh-question it
-presupposes there IS more -- it assumes you have something. In a yes/no question
-the same word licenses "nothing, thanks."
+**Rejected.** "Anything else to share?" (answerable with "no"). "A note for the
+recipient?" (shipping-label language, and a field label with a question mark on
+it). "What do you tell people about it?" (solves the antecedent, but asks what
+you say publicly rather than what you would confide).
 
-**Rejected.** **"Anything else to share?"** -- answerable with "no", which is the
-one property the question cannot have. **"Anything else they should know?"** --
-same, plus "should know" pulls facts where three of the four examples are stories.
-**"A note for the recipient?"** -- "recipient" is shipping-label language for the
-warmest page in the app, and a field label with a question mark on it, on a screen
-whose whole brief is that nothing looks like a field. **"What do you tell people
-about it?"** -- carried for a while, and it solves the antecedent cleanly, but it
-asks what you say publicly rather than what you would confide.
-
-**The placeholder is not decoration.** It teaches the register in a way the
-question cannot, and the old one -- "I recommend the dulce de leche and the
-peanut" -- was demonstrating exactly the review voice the question was pulling
-for. One fixed example would read as the required answer, so it varies.
-
-**Unchanged:** question one stays "What is this place?". The split is the point
--- one asks what it is, the other asks what it is to you.
+**The placeholder is not decoration.** The old one — "I recommend the dulce de
+leche and the peanut" — demonstrated the exact review voice the question was
+pulling for. Longest first: two clauses show an answer may be more than one
+thought, and the short ones keep the bar from being a first date.
