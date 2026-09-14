@@ -1,35 +1,32 @@
 # Status
 
-Last updated 2026-09-10. Update this when the state below stops being true.
+Last updated 2026-09-14. Update this when the state below stops being true.
 
 ## Where the project is
 
-The scaffolding, tooling and design system are done and committed. The schema
-is live in Supabase, and the mobile app makes and keeps lists: paste a Google
-Maps link, get a place; name a list; put five places on it and answer two
-questions about each. **Nothing is persisted and nothing is published.** Both
-are deliberate and both are next, in that order.
+The mobile app makes and keeps lists: paste a Google Maps link, get a place;
+name a list; put five places on it and answer two questions about each. **It now
+persists** — one versioned JSON document in MMKV (decision 28). A list survives
+a reload.
 
-The builder was rebuilt on branch `builder-flow` (decisions 38-42) after the
-first pass read as a form rather than a place to think. Publishing left the
-builder entirely while that happened.
+**Nothing is published.** That is next, and it is the last piece of the loop.
 
 | Area                                          | State                                                          |
 | --------------------------------------------- | -------------------------------------------------------------- |
 | Monorepo, npm workspaces, CI                  | done                                                           |
-| `apps/web` — Next.js 16                       | placeholder; to be rebuilt in Astro (decision 26)              |
-| `apps/mobile` — Expo SDK 57 dev build         | home screen, add-spots sheet, geocoding, splash                |
+| `apps/web` — Next.js 16                       | placeholder; to be rebuilt in Astro (decisions 26, 32)         |
+| `apps/mobile` — Expo SDK 57 dev build         | home, capture, builder, storage                                |
 | Splash — native + animated brand line         | done; the two are matched so the handover is invisible         |
 | `packages/shared` — design tokens, brand mark | done                                                           |
-| Documentation                                 | README, CONTRIBUTING, CLAUDE.md, decisions ×27, design.md      |
-| **Database**                                  | live in Supabase, built by hand; not yet in migrations         |
+| **Database**                                  | live in Supabase, hand-built. Migrations at submission (43)    |
 | Google Maps link parsing                      | done, tested against real links                                |
 | Geocoding                                     | done — `expo-location`, fills in whichever half the link lacks |
-| List model                                    | done, pure and unit-tested (decisions 34–35, 40)               |
+| List model                                    | done, pure and unit-tested                                     |
 | List builder — routes, questions, map, swipe  | done (decisions 38–42)                                         |
+| Editing a list's name or location             | done — tap the words (decision 44's rule, one level up)        |
+| Local persistence — MMKV                      | **done** (decision 28)                                         |
 | Drag to reorder                               | **built but not wired** — no home in the new page yet          |
-| Publish flow                                  | **removed from the builder** (decision 42); still stubbed      |
-| Local persistence (MMKV)                      | **not started — this is next.** Everything empties on reload   |
+| Publish flow                                  | **not started. This is next.**                                 |
 | Auth, PostHog, share extension                | not started                                                    |
 
 ## Running it
@@ -41,7 +38,7 @@ npm run ios      # iOS simulator (first build ~10 min)
 npm run mobile   # dev server for an installed build
 ```
 
-### Three gotchas that will waste an hour each
+### Four gotchas that will waste an hour each
 
 **Xcode.** Expo SDK 57 needs **Xcode 26.4+**; below that it fails inside
 `expo-modules-jsi` with an error about `SWIFT_RETURNS_RETAINED` that looks like
@@ -54,6 +51,18 @@ DEVELOPER_DIR=/Applications/Xcode-26.6.app/Contents/Developer npm run ios
 ```
 
 Never run `sudo xcode-select -s` to switch the global default.
+
+**A native module that builds but is not there.** MMKV v4 is Nitro-based, so
+`react-native-nitro-modules` is a second native dependency — and npm hoists it to
+the root as a peer, where **autolinking never looks**. Both are declared in
+`apps/mobile/package.json` for that reason; a native dependency at the root links
+to nothing and fails at runtime with no build error.
+
+Separately, when the app says a native module "could not be found" and
+`Podfile.lock` clearly has it, the binary is stale: the simulator is relaunching
+a build made before the module existed. Delete the app from the simulator and
+`npx expo run:ios --no-build-cache`. Watch for an actual compile — if it jumps
+straight to "Opening on iOS", it did not rebuild.
 
 **npm audit.** Reports 13 moderate vulnerabilities. They are accepted and
 documented in decision 12. **Never run `npm audit fix --force`** — it "fixes"
@@ -76,18 +85,27 @@ not re-hoist otherwise.
 ## What is decided
 
 Read [`decisions.md`](decisions.md) before proposing an architectural change —
-thirty-three decisions are recorded there with their rejected alternatives, so you
-can see what was already considered and why it lost.
+**forty-four** decisions are recorded there with their rejected alternatives.
+Superseded entries are compressed rather than deleted; the convention is at the
+top of that file.
 
-**Decisions 28-33 (2026-09-10) changed the data model. If you remember it
-differently, they win.** The device is the source of truth until publish, so
-Supabase holds only published lists — two tables, `lists` and `list_items`, no
-server-side `saved_spots` and no `profiles`. List items are **copies** of
-library spots, not references, so a published list is a snapshot. An auth user
-is created at publish, not at first write, and signing in with Apple is offered
-as a choice against publishing anonymously. There is no `publish_list()` — decision 31 was
-reversed by 33 and publishing will be written client-side. Public pages are rendered on demand behind a cache rather than written at
-publish (32). Cost control and monetisation detail moved to
+**Decisions 28–33 (2026-09-10) changed the data model, and 43 (2026-09-14)
+settled how publishing writes. If you remember it differently, they win.**
+
+- The device is the source of truth until publish, so Supabase holds only
+  published lists — `list` and `list_item`, no server-side `saved_spots`, no
+  `profiles` (28).
+- List items are **copies**, not references, so a published list is a snapshot
+  (30).
+- An auth user is created at publish, not at first write, and Apple sign-in is
+  offered against publishing anonymously (29).
+- There is no `publish_list()` (31, reversed by 33). **Publishing writes the item
+  set at `version` N+1, then moves `list.live_version` in a single-row update**
+  (43). Two requests, neither of which can tear a live page.
+- Public pages are rendered on demand behind a cache rather than written at
+  publish (32).
+
+Cost control and monetisation detail live in
 [`monetisation.md`](monetisation.md).
 
 [`design.md`](design.md) has the visual system. The values live in
@@ -107,67 +125,66 @@ Highlights that catch people out:
 
 ## Next
 
-The ordered task list lives in [`todo.md`](todo.md).
+**Publishing.** It is the last piece of the loop and everything visible is
+waiting on it: the public page, the link, decision 37's stub. The ordered task
+list is in [`todo.md`](todo.md); decision 43 has the write shape, and the DDL for
+it has already been run against the live schema.
 
-**Run the builder on a device first.** Nothing on branch `builder-flow` has
-been exercised on hardware: the swipe to remove, the pin stagger on the map,
-and whether the keyboard covers a question on a small phone are all unknowns.
-The swipe also shares gesture space with the reorder in decision 36, which is
-why reorder is not wired into the new page yet.
+Three things block it, in this order:
 
-**Then local persistence, which is now the most visible gap.** The library and
-the lists are `useState` inside `apps/mobile/src/store.tsx` and empty on
-reload, so the builder can be demonstrated but not used. One versioned JSON
-document in MMKV behind one storage module (decision 28); the store is the
-only place either collection is held, which is what keeps the swap small. It
-also unlocks two things the UI is currently working around: the spot questions
-can write through on every keystroke, which lets the swipe-back gesture come
-back, and lists stop vanishing under an open screen.
+1. **Real UUIDs.** `src/id.ts` is still a `Date.now()` + counter stand-in, and
+   the schema's `client_ref` is a `uuid` — the column that makes a re-published
+   list upsert rather than duplicate. One file, one edit, and it is the cheapest
+   of the three.
+2. **`linkIdentity()` must be verified.** Decision 29 rests on it preserving the
+   user id. `scripts/auth-link-test.mjs` settles it and **has never been run.**
+   If linking mints a new id, every URL already sent dies at the moment we ask
+   someone to sign in — so this is a question to answer before building on the
+   answer, not after.
+3. **`get_list_by_slug()` does not exist.** `anon` has no policy on any table
+   (decision 22), so a published list is currently readable only by its owner.
+   It lands with the web app.
 
-After that: real UUIDs (`src/id.ts` is the one place to change), then the
-Supabase client and identity, which is what turns decision 37's stub into a
-real URL.
+Then the Astro rewrite of `apps/web`, which is what a recipient actually sees.
 
-Two entries in the old plan have since been overturned by evidence, so if you
-remember them differently, read the decisions rather than trusting memory:
-
-- **Place resolution is not a server-side Edge Function** (decision 17). Google
-  rate-limits it, an EU IP hits a consent wall, and `robots.txt` disallows it.
-  The device reads the redirect header instead.
-- **Google does not give us coordinates on iOS** (decision 18). Nine real
-  links, four countries, zero coordinates. `MKLocalSearch` on the parsed postal
-  address is the primary source; Google's pin is the lucky case.
+**Two things the UI is still working around**, both now unblocked by storage:
+the spot questions can write through on every keystroke, which lets the
+swipe-back gesture come back; and reorder still has no home in the new list page
+and competes with the swipe.
 
 ## Known loose ends
 
-- `npx tsc --noEmit` in `apps/mobile` is clean, as are `expo lint` and
-  `format:check`. The two errors this file used to list are gone.
-- **There is no destructive colour in the tokens.** The slab behind a swiped
-  row borrows `textPrimary`. A real role belongs there before release.
-- **`SHORT_NOTE_MAX` is 80** and has never been chosen by anyone. It now lives
-  in `packages/shared/src/tokens.ts` where that is at least visible.
-- Spot ids are `tmp-<base36>` from a module counter. They need to be real
-  UUIDs before anything persists them.
-- The link expander logs `[expand] <via> <url>`. Whether short links resolve
-  via the `Location` header or the final URL decides whether the native
-  URLSession module in decision 17 needs to exist at all — **still unanswered**.
-
+- **Nothing has been deployed.** No Vercel project, no Supabase project beyond
+  the hand-built schema. **Turn the Supabase Spend Cap on when the project is
+  created** — see [`monetisation.md`](monetisation.md).
+- **`linkIdentity()` is unverified** and decision 29 rests on it.
+  `scripts/auth-link-test.mjs` needs a running stack.
+- **Spot and list ids are `tmp-<base36>`**, not UUIDs. Harmless until publish,
+  then not — see Next.
+- **`place_ref` / `place_ref_type` are outdated** but still live in `Spot`, in
+  `isSame()`, in `maps-link.ts` and in decisions 23 and 30. The database does not
+  have them.
+- **`List.description` is vestigial** — a setter and tests, no column, and the
+  design says there is no list description.
+- **The Skip button on the second spot question** is not a distinct action: Skip
+  and Done both leave. It advertises an exit on the one screen we most want
+  answered. Raised, not decided.
+- **There is no destructive colour in the tokens.** The slab behind a swiped row
+  borrows `textPrimary`. A real role belongs there before release.
+- **`SHORT_NOTE_MAX` is 80** and has never been chosen by anyone. It stays a
+  client convention in `packages/shared/src/tokens.ts`; Charley ruled out making
+  it a database constraint.
+- The link expander logs `[expand] <via> <url>`. Whether short links resolve via
+  the `Location` header or the final URL decides whether the native URLSession
+  module in decision 17 needs to exist at all — **still unanswered**.
 - The brand mark is legible to about 56px. It needs a **simplified small-size
-  variant** for favicons, and a **stroke-based redraw** before it can be
-  animated — the limbs are currently one traced shape.
-- The public list page has **no route back to the product**. The wordmark is a
-  brand, not a destination; anything screenshotted and forwarded is a dead end.
+  variant** for favicons, and a **stroke-based redraw** before it can be animated.
+- The public list page has **no route back to the product**. Anything
+  screenshotted and forwarded is a dead end.
 - Type scale has not been checked on a real device in daylight.
-- Nothing has been deployed. No Vercel project, no Supabase project. **Turn
-  the Supabase Spend Cap on when the project is created** — see
-  [`monetisation.md`](monetisation.md).
-- `linkIdentity()` preserving the user id is unverified and decision 29 rests
-  on it. `scripts/auth-link-test.mjs` settles it; it needs a running stack.
-- The schema has only been proven against a stand-in `auth` schema, not a real
-  Supabase. Run `supabase/tests/schema_test.sql` against the local stack before
-  generating types.
-- `@types/node` is declared in `packages/shared` at `^20.19.43`, which is what
-  npm had already hoisted. `engines` requires Node 22, so bump it to `^22`
-  next time someone runs an install — types only, no runtime effect.
+- The schema has only been proven against a stand-in `auth` schema.
+  `supabase/tests/schema_test.sql` is empty; `supabase/migrations/` is empty on
+  purpose until submission (43).
+- `@types/node` is `^20.19.43` in `packages/shared` while `engines` requires Node 22. Bump to `^22` next time someone runs an install — types only.
 - The full `npm run typecheck --workspaces` needs network on first run, because
-  the web app downloads `@next/swc`. `packages/shared` typechecks standalone.
+  the web app downloads `@next/swc`.
