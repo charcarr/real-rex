@@ -23,6 +23,7 @@ export default function HomeRoute() {
   const summaries: ListSummary[] = lists.map((list) => ({
     id: list.id,
     title: list.title,
+    place: list.place,
     count: list.items.length,
     state: publishState(list, spots),
   }));

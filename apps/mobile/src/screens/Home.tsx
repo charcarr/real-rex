@@ -52,6 +52,8 @@ const monoFamily = Platform.select({ ios: 'Menlo', default: 'monospace' });
 export type ListSummary = {
   id: string;
   title: string;
+  /** From the second question, when it was answered. Null when skipped. */
+  place: string | null;
   count: number;
   state: 'draft' | 'published' | 'edited';
 };
@@ -188,12 +190,24 @@ export function Home({ hasPlaces, lists, onPastePlace, onCreateList, onOpenList 
   );
 }
 
-/** The three states, said in words on the row rather than worn as a badge. */
+/**
+ * The three states, said in words on the row rather than worn as a badge --
+ * with the place in front of them.
+ *
+ * The place leads because it is the only thing telling four lists called
+ * "Top 5" apart, and this line is clipped to one. Everything after it degrades
+ * gracefully: lose the tail and you lose the wordiest state, which the link
+ * icon on the row is already saying.
+ */
 const statusLine = (list: ListSummary): string => {
   const spots = `${list.count} ${list.count === 1 ? 'spot' : 'spots'}`;
-  if (list.state === 'draft') return spots;
-  if (list.state === 'published') return `${spots} · sent`;
-  return `${spots} · edited since you sent it`;
+  const place = list.place?.trim();
+
+  const parts = place ? [place, spots] : [spots];
+  if (list.state === 'published') parts.push('sent');
+  if (list.state === 'edited') parts.push('edited since you sent it');
+
+  return parts.join(' · ');
 };
 
 const LinkIcon = ({ color }: { color: string }) => (
