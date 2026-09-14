@@ -1,5 +1,13 @@
 import { useEffect } from 'react';
-import { Animated, Platform, StyleSheet, Text, View, useAnimatedValue } from 'react-native';
+import {
+  Animated,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useAnimatedValue,
+} from 'react-native';
 import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
 
 import {
@@ -47,9 +55,12 @@ type Props = {
   place: string;
   /** How many spots are on the list. Zero draws the place itself. */
   count: number;
+  /** Tap the words to change the words. Only the label, not the map: a real
+   *  map will want its own surface back one day. */
+  onPressPlace?: () => void;
 };
 
-export function ListMap({ place, count }: Props) {
+export function ListMap({ place, count, onPressPlace }: Props) {
   const theme = useTheme();
   const styles = makeStyles(theme);
 
@@ -99,11 +110,18 @@ export function ListMap({ place, count }: Props) {
         />
       ))}
 
-      <View style={styles.label}>
+      <Pressable
+        onPress={onPressPlace}
+        disabled={!onPressPlace}
+        accessibilityRole={onPressPlace ? 'button' : undefined}
+        accessibilityLabel={onPressPlace ? `Location, ${place}` : undefined}
+        hitSlop={8}
+        style={({ pressed }) => [styles.label, pressed && styles.labelPressed]}
+      >
         <Text style={styles.labelText} numberOfLines={1}>
           {place.toUpperCase()}
         </Text>
-      </View>
+      </Pressable>
     </View>
   );
 }
@@ -176,6 +194,7 @@ const makeStyles = (theme: ColorScheme) =>
       borderRadius: radius.full,
       backgroundColor: theme.surface,
     },
+    labelPressed: { opacity: 0.5 },
     labelText: {
       fontFamily: monoFamily,
       fontSize: fontSize.xs,

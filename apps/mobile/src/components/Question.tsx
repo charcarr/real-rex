@@ -51,6 +51,14 @@ type Props = {
   onBack: () => void;
   /** Present when the question may go unanswered. */
   onSkip?: () => void;
+  /**
+   * The question may be answered with nothing.
+   *
+   * Only true where empty is a real answer rather than an unfinished form --
+   * clearing a list's location to remove it. Creating still requires a name,
+   * so this stays off there.
+   */
+  optional?: boolean;
   multiline?: boolean;
   maxLength?: number;
   /** 0 to 1. Two-question flows pass 0.5 then 1. */
@@ -70,6 +78,7 @@ export function Question({
   submitLabel,
   onBack,
   onSkip,
+  optional = false,
   multiline = false,
   maxLength,
   progress,
@@ -79,8 +88,12 @@ export function Question({
   const styles = makeStyles(theme);
 
   const answered = value.trim().length > 0;
+  // The hairline still lights on content -- it is reporting what is typed. The
+  // button reports whether there is an answer, which for an optional question
+  // an empty field is.
+  const canSubmit = answered || optional;
   const submit = () => {
-    if (answered) onSubmit();
+    if (canSubmit) onSubmit();
   };
 
   /** Only near the cap, and only ever one number. A counter that runs the
@@ -151,15 +164,15 @@ export function Question({
         <View style={styles.actions}>
           <Pressable
             onPress={submit}
-            disabled={!answered}
+            disabled={!canSubmit}
             accessibilityRole="button"
             style={({ pressed }) => [
               styles.submit,
-              !answered && styles.submitOff,
+              !canSubmit && styles.submitOff,
               pressed && styles.pressed,
             ]}
           >
-            <Text style={[styles.submitLabel, !answered && styles.submitLabelOff]}>
+            <Text style={[styles.submitLabel, !canSubmit && styles.submitLabelOff]}>
               {submitLabel}
             </Text>
             <Svg
@@ -167,7 +180,7 @@ export function Question({
               height={16}
               viewBox="0 0 24 24"
               fill="none"
-              stroke={answered ? '#FFFFFF' : theme.textMuted}
+              stroke={canSubmit ? '#FFFFFF' : theme.textMuted}
               strokeWidth={2.6}
               strokeLinecap="round"
               strokeLinejoin="round"

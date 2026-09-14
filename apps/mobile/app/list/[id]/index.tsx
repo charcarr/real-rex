@@ -73,6 +73,9 @@ export default function ListRoute() {
   const items = resolveAll(list, spots);
   const empties = Math.max(0, MAX_SPOTS_PER_LIST - items.length);
 
+  const edit = (step: 1 | 2) =>
+    router.push({ pathname: '/list/[id]/edit', params: { id: list.id, step } });
+
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <View style={styles.header}>
@@ -81,11 +84,23 @@ export default function ListRoute() {
       </View>
 
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        <Text style={styles.headline}>
-          {list.title.trim() === '' ? 'Untitled list' : list.title}
-        </Text>
+        {/* Tap the words to change the words -- the rule the spot rows run on.
+            The headline is also the only door to the location question for a
+            list that has none, since without a place there is no map to tap. */}
+        <Pressable
+          onPress={() => edit(1)}
+          accessibilityRole="button"
+          accessibilityLabel={`Edit list name, ${list.title}`}
+          style={({ pressed }) => pressed && styles.pressed}
+        >
+          <Text style={styles.headline}>
+            {list.title.trim() === '' ? 'Untitled list' : list.title}
+          </Text>
+        </Pressable>
 
-        {list.place ? <ListMap place={list.place} count={items.length} /> : null}
+        {list.place ? (
+          <ListMap place={list.place} count={items.length} onPressPlace={() => edit(2)} />
+        ) : null}
 
         <View style={styles.rows}>
           {items.map((item, index) => (
