@@ -53,6 +53,7 @@ not here — nobody reads a decision log when their build is broken.
 | 40  | Notes belong to the place; scope is asked rarely    | narrows 35                  |
 | 41  | Removing is a swipe, and there is no swap           |                             |
 | 42  | Publishing leaves the builder                       | moves the button in 37      |
+| 43  | Publishing moves a pointer over versioned items     | supersedes the shape in 28  |
 
 ---
 
@@ -1191,3 +1192,80 @@ sent lists and that its presence is what marks a list published. Send on
 drafts and a link on sent keeps that rule intact — but home now carries the
 product's central action, and that is worth deciding on purpose rather than
 inheriting.
+
+---
+
+## 43. Publishing moves a pointer over versioned items
+
+> **Supersedes the two-table shape in 28, and settles what 33 left open.** 33
+> wrote publishing client-side and accepted that it could not be atomic. This
+> is how it becomes atomic anyway, without a function and without a server.
+
+**Decision.** `list_item` gains a `version`. `list` gains `live_version`, which
+points at the version the world sees and is the only thing that makes a list
+public. Publishing is two requests:
+
+1. write the item set at version N+1, where nothing points at it;
+2. `update list set live_version = N + 1 where id = ? and live_version = N`.
+
+Rows above `live_version` are the draft, and are mutable. Rows at or below it
+are frozen, forever.
+
+**Why.** The requirement was never "one transaction" -- it was that **a reader
+never sees a torn list**. Atomicity was a mechanism reached for, and naming the
+end rather than the means is what let another answer into the room.
+
+Re-publishing is where it actually bites. A failed first publish leaves an
+orphan nobody has the link to; a failed _re_-publish, done as delete-then-insert,
+empties a URL already sent to eleven people. The second is the failure worth
+designing against, and it only appears once editing exists.
+
+Verified while deciding, so nobody re-derives it: PostgREST runs one transaction
+per request and cannot hold one open across requests, and a single data-modifying
+CTE cannot replace the item set either, because unique constraints are checked
+across the whole statement -- tested, `23505` against `list_item_position_unique`.
+So rather than find a transaction, this stops needing one. Step 1 is harmless
+while nothing points at it. Step 2 is a single-row update, which Postgres makes
+atomic for free.
+
+**What falls out, unpaid for**
+
+- **Compare-and-swap.** `where live_version = N` turns two devices editing one
+  list into a detected conflict rather than a lost write.
+- **History**, which answers "are people publishing edits?" and makes going back
+  a version a single-row update.
+- **Backup and sync, once sign-in exists.** Pushing draft rows at a version
+  nobody points at is _already_ the safe half of publishing, so drafts can sync
+  across devices without the public page moving, and publishing becomes a pointer
+  flip over rows that are already there. Charley's observation, and the strongest
+  argument for the shape.
+- **The five-spot cap gets stronger.** `unique (list_id, version, position)` with
+  `position between 1 and 5` makes a sixth row unrepresentable.
+
+**Rejected: the item set as a `jsonb` array on the list row.** One request, no
+versions, no orphans -- the aggregate becomes one row, and single-row atomicity
+plus MVCC readers give the guarantee for nothing. Rejected because it trades
+typed columns, per-field constraints and validated schema evolution on the most
+important data in the product for a write-path convenience, on a schema that is
+already wide and will get wider. Stated as the rule: **the transport does not get
+to choose the data model.**
+
+**Rejected: `publish_list()`** (31, reversed by 33) and **a server of our own**
+(33's escape hatch). Neither is needed now, and 33's reasoning stands.
+
+**Cost accepted.** Publishing is two requests, not one. `list_item` grows by up
+to five rows per edit, so a pruning policy will eventually be wanted and is
+deliberately not written now. A marshalling layer between the device document and
+the rows has to exist.
+
+**The schema stays hand-managed in the dashboard until the first App Store
+submission**, and is dumped into migrations then. With no customers and no data,
+carrying migrations costs more than it protects; decision 10 takes effect at the
+dump, and the window where reconciling by hand is cheap closes with the first
+real user.
+
+**Drift resolved in the same move:** `description` dropped (the builder has no
+list description), `place` added (the second question had nowhere to land),
+`place_ref` / `place_ref_type` added so the database agrees with the device about
+what a duplicate place is, and `limits.id` made an actual singleton -- a boolean
+primary key allows two rows.
