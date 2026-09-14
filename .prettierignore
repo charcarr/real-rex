@@ -9,3 +9,8 @@ packages/shared/src/database.types.ts
 # Expo generates this and rewrites it on every prebuild. It is in
 # apps/mobile/.gitignore, but Prettier only reads the root ignore file.
 apps/mobile/expo-env.d.ts
+
+# Migrations are append-only history: once one has been applied anywhere, a
+# reformat is churn on a file nobody should be editing. Prettier also has no
+# SQL parser without a plugin, so these would error rather than be skipped.
+supabase/migrations/
