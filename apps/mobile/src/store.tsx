@@ -1,17 +1,28 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 
+import { DOCUMENT_VERSION } from './document';
 import { fillInMissing } from './geocode';
 import { emptyList, type List } from './lists';
 import type { Spot } from './spots';
+import { loadDocument, saveDocument } from './storage';
 
 /**
- * Everything the app knows, for as long as the app is open.
+ * Everything the app knows.
  *
- * IN MEMORY, ON PURPOSE, FOR NOW. Nothing here survives a reload, and that is
- * the agreed order of work: get making and maintaining a list right, then put
- * it in MMKV behind the storage module (decision 28), then publish. When that
- * lands it replaces the two `useState` calls below and nothing else -- every
- * screen already asks this file rather than holding state of its own.
+ * Backed by the device document (decision 28): the two collections below are
+ * read synchronously at mount and written back whenever either of them
+ * changes. That is the whole of persistence, and it stayed the one-file change
+ * it was promised to be -- every screen already asks this file rather than
+ * holding state of its own.
  *
  * It is a context rather than props because the builder is a route now and
  * not a modal. Four screens read and write the same two collections, and a
@@ -38,9 +49,25 @@ type Store = {
 const Context = createContext<Store | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [spots, setSpots] = useState<Spot[]>([]);
-  const [lists, setLists] = useState<List[]>([]);
+  // Read once, synchronously, before the first render. This is the entire
+  // reason for MMKV over AsyncStorage: there is no gap between mounting and
+  // having the library, so there is no empty state to cover up.
+  const [loaded] = useState(loadDocument);
+  const [spots, setSpots] = useState<Spot[]>(loaded.spots);
+  const [lists, setLists] = useState<List[]>(loaded.lists);
+  /** Deliberately not persisted: a spot interrupted mid-geocode should come
+   *  back as "not located yet", never as "still locating". */
   const [locating, setLocating] = useState<string[]>([]);
+
+  const hasLoaded = useRef(false);
+  useEffect(() => {
+    // Skip the write that would otherwise immediately follow the read.
+    if (!hasLoaded.current) {
+      hasLoaded.current = true;
+      return;
+    }
+    saveDocument({ version: DOCUMENT_VERSION, spots, lists });
+  }, [spots, lists]);
 
   /**
    * Two writes per spot, and that is not optional (decision 21): the row has
