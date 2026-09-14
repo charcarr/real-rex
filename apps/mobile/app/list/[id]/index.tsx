@@ -249,7 +249,7 @@ function FilledRow({
           style={({ pressed }) => [styles.expanded, pressed && styles.pressed]}
         >
           <Text style={[styles.answer, !item.longNote && styles.answerEmpty]}>
-            {item.longNote ?? 'Why would you send someone here?'}
+            {item.longNote ?? 'What else would you like to share?'}
           </Text>
         </Pressable>
       ) : null}

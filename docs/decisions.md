@@ -54,6 +54,7 @@ not here — nobody reads a decision log when their build is broken.
 | 41  | Removing is a swipe, and there is no swap           |                             |
 | 42  | Publishing leaves the builder                       | moves the button in 37      |
 | 43  | Publishing moves a pointer over versioned items     | supersedes the shape in 28  |
+| 44  | The second question asks for disclosure, not a case | rewords the question in 38  |
 
 ---
 
@@ -1269,3 +1270,69 @@ list description), `place` added (the second question had nowhere to land),
 `place_ref` / `place_ref_type` added so the database agrees with the device about
 what a duplicate place is, and `limits.id` made an actual singleton -- a boolean
 primary key allows two rows.
+
+---
+
+## 44. The second question asks for disclosure, not a case
+
+> **Rewords the second of the two spot questions in 38.** The rule that every
+> moment asking for words gets a whole page is unchanged; this is what the page
+> says.
+
+**Decision.** "Why would you send someone here?" becomes **"What else would you
+like to share?"** The placeholder beneath it carries a real example, keyed by the
+spot so it is stable for a place and varied across the library.
+
+**Why.** 38 called the second question the product: the opportunity is to make
+someone stop and think about why they would send a person here. The wording
+undercut it. **"Why would you send someone here?" asks for a justification, and
+people answer justifications defensively** -- with reasons a stranger would
+accept. Great coffee. Good for groups. Worth the price. That is a review, and
+reviews are what the app exists instead of.
+
+The lines Charley actually wants are not reasons at all:
+
+> Book a table, it fills up fast.
+> This is where Andrew and I went on our first day.
+> I come here to read after work.
+> Gina is the best instructor here, but honestly go anytime.
+
+Every one is **disclosure** -- something true about the writer rather than about
+the place. So the question stopped asking about the place, and started asking
+what they would pass on.
+
+**It stays a wh-question, and that is the anti-skip mechanism.** The goal Charley
+set is that people stop, think and write something rather than move on -- and the
+screen has a Skip button on it. A wh-question presupposes an answer exists: you
+cannot reply "no", only answer or actively refuse. A yes/no question hands out the
+exit in the wording itself, before the button does.
+
+**No pronoun, on purpose.** "What would you tell them?" was the first choice and
+Charley rejected it: at that moment the list has not been sent, so there is no
+them to point at. The fix that would have kept it was to let the eyebrow carry the
+antecedent -- until the code showed **the eyebrow is already the place name**, with
+the green numeral beside it, and displacing it costs the one thing on screen
+saying which place you are writing about. Dropping the pronoun solves it with
+nothing added, and "share" is the verb the product already runs on.
+
+**"else" does opposite things in the two grammars**, which is the whole reason
+this wording works where "Anything else to share?" did not. In a wh-question it
+presupposes there IS more -- it assumes you have something. In a yes/no question
+the same word licenses "nothing, thanks."
+
+**Rejected.** **"Anything else to share?"** -- answerable with "no", which is the
+one property the question cannot have. **"Anything else they should know?"** --
+same, plus "should know" pulls facts where three of the four examples are stories.
+**"A note for the recipient?"** -- "recipient" is shipping-label language for the
+warmest page in the app, and a field label with a question mark on it, on a screen
+whose whole brief is that nothing looks like a field. **"What do you tell people
+about it?"** -- carried for a while, and it solves the antecedent cleanly, but it
+asks what you say publicly rather than what you would confide.
+
+**The placeholder is not decoration.** It teaches the register in a way the
+question cannot, and the old one -- "I recommend the dulce de leche and the
+peanut" -- was demonstrating exactly the review voice the question was pulling
+for. One fixed example would read as the required answer, so it varies.
+
+**Unchanged:** question one stays "What is this place?". The split is the point
+-- one asks what it is, the other asks what it is to you.

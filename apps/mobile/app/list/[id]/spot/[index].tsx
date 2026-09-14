@@ -30,6 +30,17 @@ import { useTheme } from '../../../../src/theme';
  * draft stops matching the library and goes away again if you put it back.
  * Default is the place.
  *
+ * WHY THE SECOND QUESTION IS PHRASED THE WAY IT IS (decision 44). "Why would
+ * you send someone here?" asked for a justification, and people answer
+ * justifications with reasons a stranger would accept: good coffee, nice for
+ * groups. That is a review. What the product wants is disclosure -- something
+ * true about the writer, not the place -- so the question asks what they would
+ * pass on rather than what case they would make.
+ *
+ * It stays a *wh*-question on purpose. "Anything else to share?" was the other
+ * candidate and it is answerable with "no", which on a screen that also has a
+ * Skip button is handing out the exit twice.
+ *
  * Nothing is written until you leave, and backing out of the first question
  * is a save rather than a cancel -- there is no draft to keep and nothing
  * here is destructive.
@@ -115,10 +126,10 @@ export default function SpotRoute() {
       <Question
         eyebrowLead={String(slot + 1)}
         eyebrow={spot.title.toUpperCase()}
-        question="Why would you send someone here?"
+        question="What else would you like to share?"
         value={long}
         onChangeText={setLong}
-        placeholder="I recommend the dulce de leche and the peanut."
+        placeholder={askingPlaceholder(spot.id)}
         multiline
         onSubmit={leave}
         submitLabel="Done"
@@ -130,6 +141,31 @@ export default function SpotRoute() {
       </Question>
     </>
   );
+}
+
+/**
+ * The placeholder does more teaching than the question can.
+ *
+ * Each is the kind of thing the question is fishing for: a habit and a memory
+ * in one breath, a tip you only have because you go, a person by name. Nobody
+ * writes "great vibes" straight after reading one.
+ *
+ * The long one is first on purpose -- two clauses show that an answer may be
+ * more than one thought, which a single-clause example quietly forbids. The
+ * short ones are there so the bar is not a first date. Keyed by the spot, so it
+ * is steady for a place and varies across the library; one fixed example would
+ * read as the required answer.
+ */
+const EXAMPLES = [
+  "We go here after work on Wednesdays, it's also where Patrick and I had our first date.",
+  'Book a table, it fills up fast.',
+  'Gina is the best instructor here, but honestly go anytime.',
+];
+
+function askingPlaceholder(spotId: string): string {
+  let hash = 0;
+  for (const character of spotId) hash = (hash + character.charCodeAt(0)) % EXAMPLES.length;
+  return EXAMPLES[hash]!;
 }
 
 /**
