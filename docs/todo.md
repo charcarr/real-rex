@@ -19,11 +19,18 @@ true). `supabase db pull` needs Docker; hand-copying the DDL is fine.
 - [x] RLS on all three, `anon` and `authenticated` revoked, `select` granted to
       `authenticated`, one policy per table.
 - [x] Helpers: `generate_public_id()`, `slugify()`, `build_slug()`.
-- [ ] **The publish path is deliberately not built** (decision 33). It is
-      client-side when it happens, and it is weeks away — capture, the library
-      and the builder are all device-local. Decision 33 records the flow, the
-      window on the edit path, and what must stay server-side.
-- [ ] Capture the schema into `supabase/migrations/`.
+- [x] `list_item.version` and `list.live_version`, with
+      `(list_id, version, position)` and `(list_id, version, google_maps_url)`
+      widened to match (decision 43). Applied by hand, 2026-09-14.
+- [ ] **The publish path — this is next** (decision 43). Write the item set at
+      version N+1, then move `live_version` in a single-row update. Client-side,
+      no function, no server. Blocked on real UUIDs for `client_ref` and on
+      `linkIdentity()` being verified.
+- [ ] `get_list_by_slug()` — the one function `anon` may execute (decision 22).
+      Until it exists a published list is readable only by its owner.
+- [ ] Capture the schema into `supabase/migrations/` — **at App Store
+      submission, not before** (decision 43). `supabase/migrations/` is
+      deliberately empty until then; the working DDL lives outside the repo.
 - [ ] `npm run db:types` and commit `database.types.ts`.
 
 ## 2. CI guards
