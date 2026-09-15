@@ -48,7 +48,10 @@ export interface ListItem {
 export interface Publication {
   slug: string;
   url: string;
-  publishedAt: string;
+  /** When this list first went live. Null while it is unpublished -- the slug
+   *  above is kept either way, so publishing again hands back the same link
+   *  (decision 46). */
+  publishedAt: string | null;
   /**
    * The fingerprint of the content at that moment. Comparing it against the
    * list's current fingerprint is what tells published apart from
@@ -75,7 +78,8 @@ export interface List {
   items: ListItem[];
   createdAt: string;
   updatedAt: string;
-  /** Null until the first publish. Survives later edits. */
+  /** Null until the first publish. Survives edits, renames and unpublishing:
+   *  once a link exists it is this list's link forever. */
   published: Publication | null;
 }
 
@@ -164,7 +168,9 @@ export function fingerprint(list: List, library: readonly Spot[]): string {
 }
 
 export function publishState(list: List, library: readonly Spot[]): PublishState {
-  if (!list.published) return 'draft';
+  // A list that has been taken down keeps its slug but reads as a draft -- there
+  // is nothing out there for it to be behind.
+  if (!list.published || list.published.publishedAt === null) return 'draft';
   return list.published.fingerprint === fingerprint(list, library) ? 'published' : 'edited';
 }
 
@@ -275,36 +281,53 @@ export function overrideItem(
 // ---------------------------------------------------------------------------
 
 /**
- * PLACEHOLDER. Nothing is published yet.
+ * Where a published list lives.
  *
- * There is no Supabase client, no identity and no public page (todo.md
- * sections 3, 4 and 7), so there is no URL to hand out. Rather than mint a
- * realrex.app link that 404s -- a lie the app would be telling on a screen
- * whose whole job is trust -- the button hands over the repository, which is
- * at least a real page about the thing being built.
- *
- * Everything around this is real: the state machine, the fingerprint, the
- * share sheet. Making it true is a change to this one function.
+ * The host is a placeholder until `apps/web` is deployed. Decision 37's rule is
+ * that the app must not hand out a link it knows is a lie, and a host that is
+ * obviously not ours reads as unfinished rather than broken -- while the slug
+ * beneath it is real, so the shape being reviewed is the shape that ships.
+ * Deploying the site changes one constant.
  */
-export const PLACEHOLDER_URL = 'https://github.com/charcarr/real-rex';
+export const PUBLIC_BASE_URL = process.env.EXPO_PUBLIC_WEB_URL ?? 'https://abc.com';
+
+export const publicUrl = (slug: string): string => `${PUBLIC_BASE_URL}/l/${slug}`;
 
 /**
- * Mark the list as published, as of now.
+ * Put the list out there, as of now.
  *
- * The fingerprint is taken here, from the same library the page would have
- * been rendered from, which is what makes the "edited" state honest
- * afterwards.
+ * The slug is minted once and kept forever after -- through edits, through
+ * renames, and through unpublishing (decision 46). `publishedAt` means when this
+ * list went live, so publishing edits does not move it: your friend received the
+ * link on the day they received it.
+ *
+ * The fingerprint is taken here, from the same library the page was rendered
+ * from, which is what makes "edited" honest afterwards.
  */
 export function markPublished(list: List, library: readonly Spot[]): List {
+  // Stands in for the slug the database mints at insert. Everything around it
+  // is real; making it true is a change to this one line.
+  const slug = list.published?.slug ?? makeId('slug');
+
   return touch({
     ...list,
     published: {
-      // Both stand in for `generate_public_id()` and `build_slug()`, which
-      // exist in Postgres and are not reachable from here yet.
-      slug: list.published?.slug ?? makeId('slug'),
-      url: PLACEHOLDER_URL,
-      publishedAt: now(),
+      slug,
+      url: publicUrl(slug),
+      publishedAt: list.published?.publishedAt ?? now(),
       fingerprint: fingerprint(list, library),
     },
   });
+}
+
+/**
+ * Take the page down, and keep the link.
+ *
+ * Decision 46: unpublishing is the reversible one. The row survives, so
+ * publishing again hands back the same URL rather than a new one. Deleting the
+ * list is the door that closes.
+ */
+export function unpublish(list: List): List {
+  if (!list.published) return list;
+  return touch({ ...list, published: { ...list.published, publishedAt: null } });
 }

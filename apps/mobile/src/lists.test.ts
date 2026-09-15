@@ -10,11 +10,13 @@ import {
   moveItem,
   overrideItem,
   publishState,
+  publicUrl,
   removeAt,
   replaceAt,
   resolve,
   resolveAll,
   setDescription,
+  unpublish,
   type List,
 } from './lists.ts';
 import type { Spot } from './spots.ts';
@@ -178,6 +180,38 @@ test('republishing clears the edit and keeps the slug', () => {
 
   assert.equal(publishState(again, library), 'published');
   assert.equal(again.published?.slug, published.published?.slug, 'the URL you sent must not move');
+});
+
+test('unpublishing keeps the link, and the list reads as a draft again', () => {
+  const published = markPublished(listOf('a'), library);
+  const dark = unpublish(published);
+
+  assert.equal(publishState(dark, library), 'draft');
+  assert.equal(dark.published?.slug, published.published?.slug, 'the link is kept');
+  assert.equal(dark.published?.publishedAt, null);
+});
+
+test('publishing again after unpublishing hands back the same link', () => {
+  const published = markPublished(listOf('a'), library);
+  const again = markPublished(unpublish(published), library);
+
+  assert.equal(again.published?.url, published.published?.url, 'decision 46');
+  assert.equal(publishState(again, library), 'published');
+});
+
+test('publishing edits does not move the date it was sent', () => {
+  const published = markPublished(listOf('a'), library);
+  const again = markPublished(setDescription(published, 'Some words'), library);
+
+  assert.equal(again.published?.publishedAt, published.published?.publishedAt);
+});
+
+test('the link is the slug under the public base', () => {
+  const published = markPublished(listOf('a'), library);
+  const slug = published.published?.slug ?? '';
+
+  assert.equal(published.published?.url, publicUrl(slug));
+  assert.ok(published.published?.url.endsWith(`/l/${slug}`));
 });
 
 test('the fingerprint ignores what the page does not show', () => {
