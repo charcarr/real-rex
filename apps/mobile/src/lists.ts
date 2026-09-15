@@ -294,6 +294,30 @@ export const PUBLIC_BASE_URL = process.env.EXPO_PUBLIC_WEB_URL ?? 'https://abc.c
 export const publicUrl = (slug: string): string => `${PUBLIC_BASE_URL}/l/${slug}`;
 
 /**
+ * Stands in for the database's `build_slug()` until publishing is real.
+ *
+ * Deliberately the same shape -- a folded title and twelve hex characters --
+ * so the link on screen now is the link that will be on screen later. This is
+ * the one place the device copies a rule that belongs to Postgres, and it goes
+ * away the moment an insert answers with the real one.
+ */
+function stubSlug(title: string): string {
+  const folded = title
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .slice(0, 60)
+    .replace(/^-+|-+$/g, '');
+
+  const hex = Array.from({ length: 12 }, () => Math.floor(Math.random() * 16).toString(16)).join(
+    '',
+  );
+
+  return `${folded === '' ? 'list' : folded}-${hex}`;
+}
+
+/**
  * Put the list out there, as of now.
  *
  * The slug is minted once and kept forever after -- through edits, through
@@ -305,9 +329,7 @@ export const publicUrl = (slug: string): string => `${PUBLIC_BASE_URL}/l/${slug}
  * from, which is what makes "edited" honest afterwards.
  */
 export function markPublished(list: List, library: readonly Spot[]): List {
-  // Stands in for the slug the database mints at insert. Everything around it
-  // is real; making it true is a change to this one line.
-  const slug = list.published?.slug ?? makeId('slug');
+  const slug = list.published?.slug ?? stubSlug(list.title);
 
   return touch({
     ...list,
