@@ -136,6 +136,12 @@ All of this is device-local until the publish step.
       present when coordinates exist.
 - [ ] OG image generated at publish **on the device** and uploaded once — the
       one thing kept out of the request path (decision 32).
+- [ ] **Unlisted, not public** (decision 48). `X-Robots-Tag: noindex, nofollow`
+      and `Referrer-Policy: no-referrer` on every list page. Do NOT `Disallow`
+      the list route in `robots.txt` — a blocked crawler never reads the
+      noindex, which is how Claude's and ChatGPT's shared pages ended up in
+      Google. Disallow the AI crawlers by user agent instead, and leave
+      `User-agent: *` allowed.
 - [ ] Give the page a route back to the product. Currently anything
       screenshotted and forwarded is a dead end.
 - [ ] Purge the cached URL on publish, edit, unpublish and delete. Every write

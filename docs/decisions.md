@@ -58,6 +58,7 @@ not here — nobody reads a decision log when their build is broken.
 | 45  | Sending is a sheet raised from home                 | closes open item in 42      |
 | 46  | `published_at` is the switch; newest version live   | reverses the shape in 43    |
 | 47  | The Supabase session lives in MMKV                  | supersedes 24               |
+| 48  | A published page is unlisted, not public            |                             |
 
 ---
 
@@ -1266,3 +1267,45 @@ does. Since 28 the app already ships MMKV, and `supabase-js` accepts any object
 with `getItem`, `setItem` and `removeItem` and awaits whatever they return — so
 a synchronous store satisfies it unchanged. A second storage engine and a second
 native dependency, for one token, is not a trade worth making.
+
+---
+
+## 48. A published page is unlisted, not public
+
+**Decision.** Every list page carries `X-Robots-Tag: noindex, nofollow` as a
+response header and `Referrer-Policy: no-referrer`. `robots.txt` **allows**
+general crawlers and disallows the named AI crawlers by user agent. Nothing on
+realrex.app ever links to a list page.
+
+**Why the header rather than a `Disallow`.** This is the trap, and it has caught
+better-resourced teams than this one: `robots.txt` blocks _crawling_, not
+_indexing_. A URL that anyone links to can be indexed from the link alone,
+without the page ever being fetched — and blocking the crawler guarantees it
+never reads the `noindex` you put there. Claude's shared chats were indexed in
+2025 while serving both a `Disallow` and `x-robots-tag: none`, because the first
+directive prevented anyone from seeing the second. ChatGPT's shared
+conversations went the same way. **A `noindex` only works on a page a crawler is
+allowed to read**, so the block comes off and the instruction goes on.
+
+**The preview still works.** Link-preview scrapers do not index and do not honour
+`noindex`, so WhatsApp renders the OG card exactly as decision 26 intended. That
+is the whole difference between being unlisted and being hidden.
+
+**`Referrer-Policy` is not incidental.** Every spot on the page links out to
+Google Maps, so without it a normal click hands the list's URL — which is the
+bearer token for the whole page — to a third party in the `Referer` header.
+
+**AI crawlers are asked, not stopped.** `GPTBot`, `ClaudeBot`, `CCBot`,
+`Google-Extended`, `PerplexityBot` and their successors get a `Disallow` of their
+own, which leaves `User-agent: *` free to read the `noindex`. Several have been
+caught ignoring the file, so this is a request and is recorded as one. What
+actually protects a list is that its URL is unguessable and nothing anywhere
+links to it.
+
+**The stance in one line: a link is a thing you were given, never a thing you can
+find.** Sharing a list is public in the sense that it needs no account; it is not
+public in the sense of being discoverable.
+
+**Where it lands.** With the Astro rewrite (decision 26), since that is where the
+response headers are written. Recorded now because it is three headers before
+launch and a news story afterwards.
