@@ -125,8 +125,10 @@ const v2 = await api('/rest/v1/list_item', {
 ok(v2.status === 201, `five items at version 2 (${v2.status})`, v2.json);
 
 const all = await api(`/rest/v1/list_item?list_id=eq.${listId}&select=version,position,title&order=version.desc,position.asc`, { token });
-const newest = Math.max(...(all.json ?? []).map((r) => r.version));
-const live = (all.json ?? []).filter((r) => r.version === newest);
+// Defensive: a failed request answers with an error object, not an array.
+const rows = Array.isArray(all.json) ? all.json : [];
+const newest = rows.length ? Math.max(...rows.map((r) => r.version)) : 0;
+const live = rows.filter((r) => r.version === newest);
 ok(newest === 2, `the newest version is ${newest}`);
 ok(live.length === 5, 'the live version has five rows');
 ok(live.find((r) => r.position === 1)?.title === 'Time Out Market (edited)', 'the edit is what is live');
