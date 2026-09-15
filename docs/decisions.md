@@ -34,7 +34,7 @@ not here — nobody reads a decision log when their build is broken.
 | 21  | Capture is a burst; editing is a separate pass      |                             |
 | 22  | `anon` has no table access; one public function     |                             |
 | 23  | The stored shape is source-neutral                  |                             |
-| 24  | Supabase session stored in AsyncStorage             | closes open item in 8       |
+| 24  | Supabase session stored in AsyncStorage             | superseded by 47            |
 | 25  | App screens echo the list; the ring carries the cap |                             |
 | 26  | Astro on Cloudflare, rendered at publish            | mechanism superseded by 32  |
 | 27  | Monetisation posture                                | detail in `monetisation.md` |
@@ -52,9 +52,12 @@ not here — nobody reads a decision log when their build is broken.
 | 39  | The list page edits nothing                         |                             |
 | 40  | Notes belong to the place; scope is asked rarely    | narrows 35                  |
 | 41  | Removing is a swipe, and there is no swap           |                             |
-| 42  | Publishing leaves the builder                       | moves the button in 37      |
-| 43  | Publishing moves a pointer over versioned items     | supersedes the shape in 28  |
+| 42  | Publishing leaves the builder                       | open item closed by 45      |
+| 43  | Publishing moves a pointer over versioned items     | write shape reversed by 46  |
 | 44  | The second question asks for disclosure, not a case | rewords the question in 38  |
+| 45  | Sending is a sheet raised from home                 | closes open item in 42      |
+| 46  | `published_at` is the switch; newest version live   | reverses the shape in 43    |
+| 47  | The Supabase session lives in MMKV                  | supersedes 24               |
 
 ---
 
@@ -1144,3 +1147,122 @@ you say publicly rather than what you would confide).
 leche and the peanut" — demonstrated the exact review voice the question was
 pulling for. Longest first: two clauses show an answer may be more than one
 thought, and the short ones keep the bar from being a first date.
+
+---
+
+## 45. Sending is a sheet raised from home
+
+> **Closes the open item in 42**, which asked for home carrying the product's
+> central action to be decided on purpose rather than inherited.
+
+**Decision.** One sheet does everything: send, copy, share, publish edits,
+unpublish. It is raised from the row's trailing icon on home — a green arrow on
+a draft, the link icon on a sent list — and dismissed back to it. No send
+screen, and still no publish button on the list page.
+
+**Why a sheet.** It is already the app's vocabulary: `AddSpotsSheet` and
+`SpotPicker` are both sheets, and 38's rule governs moments that ask for
+_words_, which this is not. A dedicated send page was drawn and rejected as a
+fourth screen in an app with three. Inline row controls were drawn and rejected
+because the row ends up carrying a pill and a link at once, and because the URL
+would never be shown, only copied.
+
+**The green arrow is the one new affordance on home.** Green is permitted on
+icons — 25's contrast rule bars small green _text_, not marks — so the row with
+something to do says so without wearing a button.
+
+**Unpublish is a full-width button**, the same size and weight as Share, in the
+same stack. Charley: we do not need to discourage unpublishing. The only thing
+treating it as different is the confirm, which is a native alert — and that is
+where the one red in this app comes from, supplied by the OS for free.
+
+**Unpublished edits are a mark, not a control.** A hollow grey dot and "Edits
+not yet published" under the list's headline, not tappable. Neutral rather than
+amber, because 25 says no palette expansion and green would read as good news.
+The list page still does nothing but hold the list.
+
+**`expo-clipboard` goes in**, deferred once by 37. The link is copied when it is
+minted and the button stays for later; Share opens the system sheet, which is
+where WhatsApp actually is.
+
+**Mockups.** "Real Rex Publish Flow", 2026-09-15, in Charley's Claude artifacts.
+
+---
+
+## 46. `published_at` is the switch; the newest version is live
+
+> **Reverses the write shape in 43 and keeps its data model.** Typed columns and
+> versioned items stand. The pointer does not.
+
+**Decision.** `list.published_at` is the only thing making a list public, and
+the live items are the rows at the highest `version` for that list.
+`list.live_version` and `list.public_id` are dropped.
+
+- **Send** — insert the list, insert its items at version 1, set `published_at`.
+- **Publish edits** — insert items at the next version, and move `published_at`
+  to now. `published_at` dates the version that is live rather than the first
+  one: what a reader is looking at is the thing worth dating, and it is what the
+  sheet needs to say how old the live page is. Costs the second request back.
+  The link is untouched either way — it is minted once, at insert, and renaming
+  never moves it.
+- **Unpublish** — `published_at = null`. The page goes dark and **the link is
+  kept**.
+- **Delete** — delete the row; items cascade. This is the permanent one.
+
+**Why.** 43 bought "a reader never sees a torn list" with a pointer over frozen
+generations, and the price kept arriving: version arithmetic, orphan cleanup
+after a failed publish, RLS policing which versions were writable, and a pruning
+policy owed later. But a bulk insert is already one statement — so if the newest
+version is the live one, **the insert is the swap**, and the guarantee survives
+with none of the machinery.
+
+Charley, on the plan as it stood: "I genuinely don't understand where you're
+finding this complexity." He was right, and most of it was mine rather than
+43's — in particular an attempt to make the database refuse writes below the
+pointer, defending a list against its only possible writer, its owner.
+
+**The client reads before it decides**, which is what removes the arithmetic: ask
+for the highest version, add one. It is also the answer to a publish that failed
+halfway — the next one writes the next number and the stale rows are ignored.
+
+**The link survives unpublishing.** Retiring the slug was decided and then
+reversed: it only buys revocation, and delete already does that properly.
+Unpublish is the reversible one, delete is the door that closes, and the confirm
+dialog says so.
+
+**`list_set_slug` is `security definer`**, because 22's lockdown leaves
+`authenticated` unable to execute `slugify`. Granting execute on the helpers was
+the alternative; this way the client cannot call them at all. The function takes
+nothing from the caller but the row, runs no dynamic SQL, and pins an empty
+`search_path`.
+
+**What is given up.** Publish history, rollback to a previous version, and the
+two-device conflict detection 43 got for free. None of them is a feature, and
+every version is still on the row if any of it is ever wanted.
+
+**Rejected.** Upsert on `(list_id, position)` with a deferrable unique on
+`google_maps_url` — fewer requests again, but it swaps an integer that goes up
+for a constraint mode nobody will remember. Unpublish as a delete, with a new
+slug minted on the next publish — genuinely simple, but it makes unpublish
+destructive to buy revocation that delete already provides.
+
+**Proven before any app code.** `scripts/publish-smoke.mjs` walks the whole path
+against the live project with no dependencies, including the three things the
+database is now responsible for: a sixth spot refused, the slug not
+client-writable, and one `client_ref` unable to create two lists.
+
+---
+
+## 47. The Supabase session lives in MMKV
+
+> **Supersedes 24.**
+
+**Decision.** The session is persisted through a small adapter over the same
+MMKV instance the device document uses.
+`@react-native-async-storage/async-storage` is not added.
+
+**Why.** 24 chose AsyncStorage because Supabase's React Native documentation
+does. Since 28 the app already ships MMKV, and `supabase-js` accepts any object
+with `getItem`, `setItem` and `removeItem` and awaits whatever they return — so
+a synchronous store satisfies it unchanged. A second storage engine and a second
+native dependency, for one token, is not a trade worth making.

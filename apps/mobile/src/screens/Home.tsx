@@ -64,9 +64,18 @@ type Props = {
   onPastePlace: () => void;
   onCreateList?: () => void;
   onOpenList?: (id: string) => void;
+  /** Raises the publish sheet for one list (decision 45). */
+  onPublish?: (id: string) => void;
 };
 
-export function Home({ hasPlaces, lists, onPastePlace, onCreateList, onOpenList }: Props) {
+export function Home({
+  hasPlaces,
+  lists,
+  onPastePlace,
+  onCreateList,
+  onOpenList,
+  onPublish,
+}: Props) {
   const hasLists = lists.length > 0;
   const theme = useTheme();
   const styles = makeStyles(theme);
@@ -145,9 +154,27 @@ export function Home({ hasPlaces, lists, onPastePlace, onCreateList, onOpenList 
                       {statusLine(list)}
                     </Text>
                   </View>
-                  {/* Decision 25: a link on the row is what marks a list sent.
-                      No badge does the same job twice. */}
-                  {list.state === 'draft' ? null : <LinkIcon color={theme.textMuted} />}
+                  {/* Both open the same sheet. Decision 25: a link on the row is
+                      what marks a list sent, and no badge does that job twice --
+                      so a draft gets the other half of the story instead, an
+                      arrow saying there is something to do here. Green is
+                      allowed on a mark; it is small green TEXT the contrast rule
+                      bars (tokens.ts). */}
+                  <Pressable
+                    onPress={() => onPublish?.(list.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      list.state === 'draft' ? `Send ${list.title}` : `Link for ${list.title}`
+                    }
+                    hitSlop={12}
+                    style={({ pressed }) => [styles.trailing, pressed && styles.rowPressed]}
+                  >
+                    {list.state === 'draft' ? (
+                      <SendIcon color={theme.accent} />
+                    ) : (
+                      <LinkIcon color={theme.textMuted} />
+                    )}
+                  </Pressable>
                 </Pressable>
               ))}
             </View>
@@ -204,11 +231,34 @@ const statusLine = (list: ListSummary): string => {
   const place = list.place?.trim();
 
   const parts = place ? [place, spots] : [spots];
-  if (list.state === 'published') parts.push('sent');
-  if (list.state === 'edited') parts.push('edited since you sent it');
+  // Sentence case, both of them: these are statements about the list, not tags
+  // stuck on it, and a lower-case fragment after a middot reads as debug output.
+  //
+  // "Public" rather than "Sent" because that is what is true right now --
+  // sending is something you did once, being public is the state the list is
+  // in, and it is the state the row is reporting.
+  if (list.state === 'published') parts.push('Public');
+  if (list.state === 'edited') parts.push('Edits not yet published');
 
   return parts.join(' · ');
 };
+
+/** Up and to the right: out of the app and off to somebody. */
+const SendIcon = ({ color }: { color: string }) => (
+  <Svg
+    width={18}
+    height={18}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={color}
+    strokeWidth={1.9}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <Path d="M7 17L17 7" />
+    <Path d="M8 7h9v9" />
+  </Svg>
+);
 
 const LinkIcon = ({ color }: { color: string }) => (
   <Svg
@@ -303,6 +353,8 @@ const makeStyles = (theme: ColorScheme) =>
       color: theme.textPrimary,
     },
     rowSub: { marginTop: 3, fontSize: fontSize.base, color: theme.textSecondary },
+    /** Wide enough to be a target of its own inside the row. */
+    trailing: { alignItems: 'flex-end', justifyContent: 'center', width: 32, height: 78 },
     /**
      * Top-aligned in both states. Centring floated the block in the middle of
      * a large void; anchored to the top it reads in the order it is read, and
