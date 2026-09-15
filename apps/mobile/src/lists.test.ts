@@ -6,6 +6,7 @@ import {
   canPublish,
   emptyList,
   fingerprint,
+  itemsFingerprint,
   markPublished,
   moveItem,
   overrideItem,
@@ -16,6 +17,7 @@ import {
   resolve,
   resolveAll,
   setDescription,
+  setTitle,
   unpublish,
   type List,
 } from './lists.ts';
@@ -221,6 +223,18 @@ test('the link is the slug under the public base', () => {
 
   assert.equal(published.published?.url, publicUrl(slug));
   assert.ok(published.published?.url.endsWith(`/l/${slug}`));
+});
+
+test('renaming a list changes its fingerprint but not its items', () => {
+  const l = listOf('a', 'b');
+  const renamed = setTitle(l, 'Lisbon, properly');
+
+  assert.notEqual(fingerprint(renamed, library), fingerprint(l, library));
+  assert.equal(
+    itemsFingerprint(renamed, library),
+    itemsFingerprint(l, library),
+    'a rename must not cost five new rows',
+  );
 });
 
 test('the fingerprint ignores what the page does not show', () => {

@@ -1,4 +1,4 @@
-import type { List, RemotePublication } from './lists.ts';
+import { itemsFingerprint, type List, type RemotePublication } from './lists.ts';
 import { toRows } from './rows.ts';
 import type { Spot } from './spots.ts';
 import { supabase } from './supabase.ts';
@@ -149,16 +149,26 @@ export async function publishList(
 
   const db = supabase();
   const row = await listRow(list);
-  const version = await nextVersion(row.id);
+  /**
+   * Renaming a list, or giving it a location, does not touch a single item --
+   * so that is one column on one row, not five identical rows at a new version.
+   *
+   * A publication written by an older build carries no `itemsFingerprint`, which
+   * compares unequal and writes the items. That is the safe direction to be
+   * wrong in.
+   */
+  if (list.published?.itemsFingerprint !== itemsFingerprint(list, library)) {
+    const version = await nextVersion(row.id);
 
-  // One statement, so the five rows land together or not at all. This is the
-  // publish: from here the newest version is what a reader sees.
-  await run(
-    'write items',
-    db
-      .from('list_item')
-      .insert(toRows(list, library).map((r) => ({ ...r, list_id: row.id, version }))),
-  );
+    // One statement, so the five rows land together or not at all. This is the
+    // publish: from here the newest version is what a reader sees.
+    await run(
+      'write items',
+      db
+        .from('list_item')
+        .insert(toRows(list, library).map((r) => ({ ...r, list_id: row.id, version }))),
+    );
+  }
 
   // Carries a rename up with it, and dates the version that just went live.
   const published = await run<{ slug: string; published_at: string }>(

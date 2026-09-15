@@ -67,6 +67,15 @@ export interface Publication {
    * change it back, and the list is not "edited".
    */
   fingerprint: string;
+  /**
+   * The same, for the rows alone.
+   *
+   * Publishing only has to write items when the ITEMS changed. Renaming a list
+   * or giving it a location is one column on one row -- writing five identical
+   * item rows at a new version to carry a new title would be waste, and would
+   * grow the table for nothing.
+   */
+  itemsFingerprint: string;
 }
 
 export interface List {
@@ -167,11 +176,14 @@ export const resolveAll = (list: List, library: readonly Spot[]): ResolvedItem[]
  * timestamps, coordinates the page does not show -- is left out, so touching
  * a list without changing what a reader sees does not mark it edited.
  */
+export function itemsFingerprint(list: List, library: readonly Spot[]): string {
+  return resolveAll(list, library)
+    .map((r) => [r.title, r.shortNote ?? '', r.longNote ?? '', r.spot.googleMapsUrl].join(''))
+    .join('');
+}
+
 export function fingerprint(list: List, library: readonly Spot[]): string {
-  const rows = resolveAll(list, library).map((r) =>
-    [r.title, r.shortNote ?? '', r.longNote ?? '', r.spot.googleMapsUrl].join(''),
-  );
-  return [list.title, list.description ?? '', ...rows].join('');
+  return [list.title, list.description ?? '', itemsFingerprint(list, library)].join('');
 }
 
 export function publishState(list: List, library: readonly Spot[]): PublishState {
@@ -325,6 +337,7 @@ export function markPublished(
       url: publicUrl(remote.slug),
       publishedAt: remote.publishedAt,
       fingerprint: fingerprint(list, library),
+      itemsFingerprint: itemsFingerprint(list, library),
     },
   });
 }
