@@ -27,3 +27,22 @@ const mmkv = createMMKV({
 export const loadDocument = (): StoredDocument => readDocument(mmkv);
 
 export const saveDocument = (document: StoredDocument): void => writeDocument(mmkv, document);
+
+/**
+ * The three methods `supabase-js` asks of a storage engine (decision 47).
+ *
+ * It awaits whatever these return, so a synchronous store satisfies it
+ * unchanged -- which is why the session shares the document's MMKV instead of
+ * bringing AsyncStorage and a second native dependency along for one token.
+ *
+ * MMKV v4 spells removal `remove`, not `delete`.
+ */
+export const sessionStorage = {
+  getItem: (key: string): string | null => mmkv.getString(key) ?? null,
+  setItem: (key: string, value: string): void => {
+    mmkv.set(key, value);
+  },
+  removeItem: (key: string): void => {
+    mmkv.remove(key);
+  },
+};

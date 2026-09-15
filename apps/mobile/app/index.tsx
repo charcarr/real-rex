@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { AddSpotsSheet } from '../src/components/AddSpotsSheet';
 import { PublishSheet } from '../src/components/PublishSheet';
 import { markPublished, publishState, unpublish } from '../src/lists';
+import { deleteList, publishList, unpublishList } from '../src/publish';
 import { Home, type ListSummary } from '../src/screens/Home';
 import { useStore } from '../src/store';
 
@@ -18,7 +19,7 @@ import { useStore } from '../src/store';
  * screens need the same two collections.
  */
 export default function HomeRoute() {
-  const { spots, lists, locating, capture, updateList } = useStore();
+  const { spots, lists, locating, capture, updateList, removeList } = useStore();
   const [pasting, setPasting] = useState(false);
   /** The list whose publish sheet is up, if any. Held by id rather than by
    *  value so the sheet re-reads the store after every write and shows what
@@ -55,19 +56,34 @@ export default function HomeRoute() {
         list={sending}
         state={sending ? publishState(sending, spots) : 'draft'}
         count={sending?.items.length ?? 0}
+        // Both of these throw when the request fails, and the sheet turns that
+        // into one line offering to try again. Nothing is written to the device
+        // until the server has confirmed it -- so the app can understate what
+        // is live, and never overstate it.
         onPublish={async () => {
           if (!sending) return null;
-          // Stands in for the two requests decision 46 describes. The wait is
-          // deliberate: the sheet's sending state has to be a real thing to
-          // look at, and putting it here means nothing in the sheet changes
-          // when the network arrives in its place.
-          await new Promise((resolve) => setTimeout(resolve, 900));
 
-          const next = markPublished(sending, spots);
+          const remote = await publishList(sending, spots);
+          const next = markPublished(sending, spots, remote);
           updateList(next);
+
           return next.published?.url ?? null;
         }}
-        onUnpublish={() => sending && updateList(unpublish(sending))}
+        onUnpublish={async () => {
+          if (!sending) return;
+
+          await unpublishList(sending);
+          updateList(unpublish(sending));
+        }}
+        onDelete={async () => {
+          if (!sending) return;
+
+          // A list that was never published has no row to delete and never
+          // minted a user -- and deleting a local draft must not create an
+          // account (decision 29).
+          if (sending.published) await deleteList(sending);
+          removeList(sending.id);
+        }}
         onClose={() => setPublishing(null)}
       />
 

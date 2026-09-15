@@ -43,6 +43,9 @@ type Store = {
   writeSpot: (spotId: string, notes: { shortNote: string; longNote: string }) => void;
   createList: (title: string, place: string | null) => List;
   updateList: (next: List) => void;
+  /** Off the device. The page it published is a separate concern and is
+   *  already gone by the time this runs. */
+  removeList: (id: string) => void;
   listById: (id: string | undefined) => List | null;
 };
 
@@ -112,6 +115,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const removeList = useCallback(
+    (id: string) => setLists((current) => current.filter((l) => l.id !== id)),
+    [],
+  );
+
   const value = useMemo<Store>(
     () => ({
       spots,
@@ -121,9 +129,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       writeSpot,
       createList,
       updateList,
+      removeList,
       listById: (id) => (id ? (lists.find((l) => l.id === id) ?? null) : null),
     }),
-    [spots, lists, locating, capture, writeSpot, createList, updateList],
+    [spots, lists, locating, capture, writeSpot, createList, updateList, removeList],
   );
 
   return <Context.Provider value={value}>{children}</Context.Provider>;

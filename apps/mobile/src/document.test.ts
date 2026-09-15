@@ -115,3 +115,35 @@ test('empty is told apart from unreadable', () => {
   assert.equal(parseDocument('[]').kind, 'unreadable');
   assert.equal(parseDocument('{"spots":[],"lists":[]}').kind, 'unreadable');
 });
+
+test('a version 1 document loses its stubbed publications', () => {
+  // Publishing was stubbed, so these slugs and URLs were never real: a list
+  // carrying one would show a link that 404s and call itself Public.
+  const raw = JSON.stringify({
+    version: 1,
+    spots: [],
+    lists: [
+      {
+        id: 'list-1',
+        title: 'Lisbon',
+        published: {
+          slug: 'lisbon-a1b2c3d4e5f6',
+          url: 'https://abc.com/l/lisbon-a1b2c3d4e5f6',
+          publishedAt: '2026-09-15T10:00:00.000Z',
+          fingerprint: 'x',
+        },
+      },
+      { id: 'list-2', title: 'Amsterdam', published: null },
+    ],
+  });
+
+  const result = parseDocument(raw);
+  assert.equal(result.kind, 'ok');
+  if (result.kind !== 'ok') return;
+
+  assert.equal(result.document.version, DOCUMENT_VERSION);
+  assert.deepEqual(
+    result.document.lists.map((l) => l.published),
+    [null, null],
+  );
+});

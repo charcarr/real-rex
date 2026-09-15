@@ -6,6 +6,7 @@ import {
   canPublish,
   emptyList,
   fingerprint,
+  itemsFingerprint,
   markPublished,
   moveItem,
   overrideItem,
@@ -16,6 +17,7 @@ import {
   resolve,
   resolveAll,
   setDescription,
+  setTitle,
   unpublish,
   type List,
 } from './lists.ts';
@@ -39,6 +41,13 @@ const spot = (id: string, title: string, shortNote: string | null = null): Spot 
 });
 
 const library = [spot('a', 'Ramiro', 'The garlic prawns.'), spot('b', 'Belem'), spot('c', 'Graca')];
+
+/** What a real publish answers with. The slug comes from a Postgres trigger, so
+ *  at this layer it is simply given. */
+const remote = (publishedAt = '2026-09-15T10:00:00.000Z') => ({
+  slug: 'lisbon-a1b2c3d4e5f6',
+  publishedAt,
+});
 
 /** A list of the given library spots, in order. */
 const listOf = (...ids: string[]): List =>
@@ -141,7 +150,7 @@ test('a list starts as a draft', () => {
 });
 
 test('publishing makes it published, and editing it makes it edited', () => {
-  const published = markPublished(listOf('a', 'b'), library);
+  const published = markPublished(listOf('a', 'b'), library, remote());
   assert.equal(publishState(published, library), 'published');
 
   assert.equal(publishState(setDescription(published, 'Some words'), library), 'edited');
@@ -155,7 +164,7 @@ test('publishing makes it published, and editing it makes it edited', () => {
 });
 
 test('editing the library behind a published list marks it edited', () => {
-  const published = markPublished(listOf('a'), library);
+  const published = markPublished(listOf('a'), library, remote());
   const edited = [spot('a', 'Ramiro', 'Rewritten in the library.'), ...library.slice(1)];
 
   assert.equal(
@@ -166,7 +175,7 @@ test('editing the library behind a published list marks it edited', () => {
 });
 
 test('an edit and its undo leave the list published, not edited', () => {
-  const published = markPublished(listOf('a'), library);
+  const published = markPublished(listOf('a'), library, remote());
   const there = setDescription(published, 'Some words');
   const back = setDescription(there, '');
 
@@ -174,16 +183,16 @@ test('an edit and its undo leave the list published, not edited', () => {
   assert.equal(publishState(back, library), 'published');
 });
 
-test('republishing clears the edit and keeps the slug', () => {
-  const published = markPublished(listOf('a'), library);
-  const again = markPublished(setDescription(published, 'Some words'), library);
+test('republishing clears the edit', () => {
+  const published = markPublished(listOf('a'), library, remote());
+  const again = markPublished(setDescription(published, 'Some words'), library, remote());
 
   assert.equal(publishState(again, library), 'published');
   assert.equal(again.published?.slug, published.published?.slug, 'the URL you sent must not move');
 });
 
 test('unpublishing keeps the link, and the list reads as a draft again', () => {
-  const published = markPublished(listOf('a'), library);
+  const published = markPublished(listOf('a'), library, remote());
   const dark = unpublish(published);
 
   assert.equal(publishState(dark, library), 'draft');
@@ -192,33 +201,40 @@ test('unpublishing keeps the link, and the list reads as a draft again', () => {
 });
 
 test('publishing again after unpublishing hands back the same link', () => {
-  const published = markPublished(listOf('a'), library);
-  const again = markPublished(unpublish(published), library);
+  const published = markPublished(listOf('a'), library, remote());
+  const again = markPublished(unpublish(published), library, remote());
 
   assert.equal(again.published?.url, published.published?.url, 'decision 46');
   assert.equal(publishState(again, library), 'published');
 });
 
-test('publishing edits moves the date the live version went up', () => {
-  const published = markPublished(listOf('a'), library);
-  const old = '2026-01-01T00:00:00.000Z';
-  const stale: List = {
-    ...published,
-    published: { ...published.published!, publishedAt: old },
-  };
+test('the date recorded is the one the server confirmed', () => {
+  const first = markPublished(listOf('a'), library, remote('2026-01-01T00:00:00.000Z'));
+  assert.equal(first.published?.publishedAt, '2026-01-01T00:00:00.000Z');
 
-  const again = markPublished(setDescription(stale, 'Some words'), library);
-
-  assert.notEqual(again.published?.publishedAt, old, 'the live page has a new date');
-  assert.equal(again.published?.slug, published.published?.slug, 'the link still does not move');
+  const again = markPublished(setDescription(first, 'Some words'), library, remote());
+  assert.equal(again.published?.publishedAt, '2026-09-15T10:00:00.000Z');
+  assert.equal(again.published?.slug, first.published?.slug, 'the link still does not move');
 });
 
 test('the link is the slug under the public base', () => {
-  const published = markPublished(listOf('a'), library);
+  const published = markPublished(listOf('a'), library, remote());
   const slug = published.published?.slug ?? '';
 
   assert.equal(published.published?.url, publicUrl(slug));
   assert.ok(published.published?.url.endsWith(`/l/${slug}`));
+});
+
+test('renaming a list changes its fingerprint but not its items', () => {
+  const l = listOf('a', 'b');
+  const renamed = setTitle(l, 'Lisbon, properly');
+
+  assert.notEqual(fingerprint(renamed, library), fingerprint(l, library));
+  assert.equal(
+    itemsFingerprint(renamed, library),
+    itemsFingerprint(l, library),
+    'a rename must not cost five new rows',
+  );
 });
 
 test('the fingerprint ignores what the page does not show', () => {

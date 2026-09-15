@@ -16,7 +16,7 @@ import type { Spot } from './spots.ts';
  */
 
 /** Bump when the shape below changes, and add a step to `migrate`. */
-export const DOCUMENT_VERSION = 1;
+export const DOCUMENT_VERSION = 2;
 
 export interface StoredDocument {
   version: number;
@@ -101,12 +101,22 @@ export function parseDocument(raw: string | undefined): ParseResult {
 }
 
 /**
- * One step per version, in order. Version 1 is the first, so there is nothing
- * to do yet. The function exists so that the day there is, there is already an
- * obvious place to put it -- and a test that proves old documents still open.
+ * One step per version, in order.
+ *
+ * 1 -> 2. Publishing was stubbed (decision 37), so a list from version 1 can be
+ * carrying a slug and a URL that were never real -- the app would show a link
+ * that 404s and a row that says Public about a page nobody can open. Clearing
+ * `published` puts those lists back to drafts, and the next send is a real
+ * first publish.
  */
 function migrate(document: StoredDocument): StoredDocument {
-  return { ...document, version: DOCUMENT_VERSION };
+  let lists = document.lists;
+
+  if (document.version < 2) {
+    lists = lists.map((list) => (list.published ? { ...list, published: null } : list));
+  }
+
+  return { ...document, lists, version: DOCUMENT_VERSION };
 }
 
 export function readDocument(backend: Backend): StoredDocument {
