@@ -321,9 +321,10 @@ function stubSlug(title: string): string {
  * Put the list out there, as of now.
  *
  * The slug is minted once and kept forever after -- through edits, through
- * renames, and through unpublishing (decision 46). `publishedAt` means when this
- * list went live, so publishing edits does not move it: your friend received the
- * link on the day they received it.
+ * renames, and through unpublishing (decision 46). `publishedAt` means when the
+ * version that is live now went up, so publishing edits moves it: what a reader
+ * is looking at is the thing worth dating, and it is what the sheet needs in
+ * order to say how old the live page is.
  *
  * The fingerprint is taken here, from the same library the page was rendered
  * from, which is what makes "edited" honest afterwards.
@@ -336,7 +337,7 @@ export function markPublished(list: List, library: readonly Spot[]): List {
     published: {
       slug,
       url: publicUrl(slug),
-      publishedAt: list.published?.publishedAt ?? now(),
+      publishedAt: now(),
       fingerprint: fingerprint(list, library),
     },
   });

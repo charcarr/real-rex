@@ -1199,8 +1199,12 @@ the live items are the rows at the highest `version` for that list.
 `list.live_version` and `list.public_id` are dropped.
 
 - **Send** — insert the list, insert its items at version 1, set `published_at`.
-- **Publish edits** — insert items at the next version. One request, and nothing
-  else moves: the link is minted once, at insert, and renaming never touches it.
+- **Publish edits** — insert items at the next version, and move `published_at`
+  to now. `published_at` dates the version that is live rather than the first
+  one: what a reader is looking at is the thing worth dating, and it is what the
+  sheet needs to say how old the live page is. Costs the second request back.
+  The link is untouched either way — it is minted once, at insert, and renaming
+  never moves it.
 - **Unpublish** — `published_at = null`. The page goes dark and **the link is
   kept**.
 - **Delete** — delete the row; items cascade. This is the permanent one.

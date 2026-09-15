@@ -199,11 +199,18 @@ test('publishing again after unpublishing hands back the same link', () => {
   assert.equal(publishState(again, library), 'published');
 });
 
-test('publishing edits does not move the date it was sent', () => {
+test('publishing edits moves the date the live version went up', () => {
   const published = markPublished(listOf('a'), library);
-  const again = markPublished(setDescription(published, 'Some words'), library);
+  const old = '2026-01-01T00:00:00.000Z';
+  const stale: List = {
+    ...published,
+    published: { ...published.published!, publishedAt: old },
+  };
 
-  assert.equal(again.published?.publishedAt, published.published?.publishedAt);
+  const again = markPublished(setDescription(stale, 'Some words'), library);
+
+  assert.notEqual(again.published?.publishedAt, old, 'the live page has a new date');
+  assert.equal(again.published?.slug, published.published?.slug, 'the link still does not move');
 });
 
 test('the link is the slug under the public base', () => {

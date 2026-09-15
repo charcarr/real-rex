@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -58,8 +58,23 @@ type Props = {
   onClose: () => void;
 };
 
-const monthDay = (iso: string): string =>
-  new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'long' });
+const midnight = (d: Date): number =>
+  new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+
+/**
+ * Today and yesterday get names rather than dates.
+ *
+ * "the version from 15 September", read on 15 September, says nothing at all --
+ * and most publishing happens on the day you are looking at it.
+ */
+const when = (iso: string): string => {
+  const then = new Date(iso);
+  const days = Math.round((midnight(new Date()) - midnight(then)) / 86_400_000);
+
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  return `on ${then.toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}`;
+};
 
 export function PublishSheet({
   visible,
@@ -73,17 +88,11 @@ export function PublishSheet({
   const theme = useTheme();
   const styles = makeStyles(theme);
 
+  // Both reset on every opening, because the caller keys this component by the
+  // list being published -- a "copied" line left over from last time would be a
+  // lie about this one.
   const [sending, setSending] = useState(false);
   const [copied, setCopied] = useState(false);
-
-  // Every opening starts clean: a "copied" line from last time would be a lie
-  // about this one.
-  useEffect(() => {
-    if (!visible) {
-      setSending(false);
-      setCopied(false);
-    }
-  }, [visible]);
 
   if (!list) return null;
 
@@ -164,7 +173,7 @@ export function PublishSheet({
                 </View>
               ) : (
                 <Text style={styles.sub}>
-                  {published?.publishedAt ? `Sent on ${monthDay(published.publishedAt)} · ` : ''}
+                  {published?.publishedAt ? `Published ${when(published.publishedAt)} · ` : ''}
                   {spots}
                 </Text>
               )}
@@ -180,7 +189,7 @@ export function PublishSheet({
                   />
                   <Text style={styles.caption}>
                     {published?.publishedAt
-                      ? `Anyone you sent this to is still seeing the version from ${monthDay(published.publishedAt)}. The link does not change.`
+                      ? `Anyone you sent this to is still seeing the version you published ${when(published.publishedAt)}. The link does not change.`
                       : 'The link does not change.'}
                   </Text>
                 </>
