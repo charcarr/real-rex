@@ -1,6 +1,6 @@
 # Status
 
-Last updated 2026-09-14. Update this when the state below stops being true.
+Last updated 2026-09-15. Update this when the state below stops being true.
 
 ## Where the project is
 
@@ -9,7 +9,10 @@ name a list; put five places on it and answer two questions about each. **It now
 persists** — one versioned JSON document in MMKV (decision 28). A list survives
 a reload.
 
-**Nothing is published.** That is next, and it is the last piece of the loop.
+**And it publishes.** Sending a list writes it to Supabase and hands back a real
+URL you can copy and share; editing it, taking it down, putting it back up at
+the same address and deleting it all work. The one thing missing from the loop
+is now the page a recipient opens.
 
 | Area                                          | State                                                          |
 | --------------------------------------------- | -------------------------------------------------------------- |
@@ -19,6 +22,8 @@ a reload.
 | Splash — native + animated brand line         | done; the two are matched so the handover is invisible         |
 | `packages/shared` — design tokens, brand mark | done                                                           |
 | **Database**                                  | live in Supabase, hand-built. Migrations at submission (43)    |
+| Publishing — sheet, requests, failure states  | **done** (decisions 45, 46)                                    |
+| Anonymous auth                                | done — created at the first publish (29). Apple is not started |
 | Google Maps link parsing                      | done, tested against real links                                |
 | Geocoding                                     | done — `expo-location`, fills in whichever half the link lacks |
 | List model                                    | done, pure and unit-tested                                     |
@@ -26,8 +31,8 @@ a reload.
 | Editing a list's name or location             | done — tap the words (decision 44's rule, one level up)        |
 | Local persistence — MMKV                      | **done** (decision 28)                                         |
 | Drag to reorder                               | **built but not wired** — no home in the new page yet          |
-| Publish flow                                  | **not started. This is next.**                                 |
-| Auth, PostHog, share extension                | not started                                                    |
+| The public page                               | **not started. This is next.**                                 |
+| Apple sign-in, PostHog, share extension       | not started                                                    |
 
 ## Running it
 
@@ -38,7 +43,7 @@ npm run ios      # iOS simulator (first build ~10 min)
 npm run mobile   # dev server for an installed build
 ```
 
-### Four gotchas that will waste an hour each
+### Five gotchas that will waste an hour each
 
 **Xcode.** Expo SDK 57 needs **Xcode 26.4+**; below that it fails inside
 `expo-modules-jsi` with an error about `SWIFT_RETURNS_RETAINED` that looks like
@@ -64,10 +69,16 @@ a build made before the module existed. Delete the app from the simulator and
 `npx expo run:ios --no-build-cache`. Watch for an actual compile — if it jumps
 straight to "Opening on iOS", it did not rebuild.
 
-**npm audit.** Reports 13 moderate vulnerabilities. They are accepted and
+**npm audit.** Reports 14 moderate vulnerabilities. They are accepted and
 documented in decision 12. **Never run `npm audit fix --force`** — it "fixes"
 them by downgrading Expo from 57 to 46, a 2022 release. `npm audit` is
 deliberately not in CI.
+
+**An env var that is set and still undefined.** `EXPO_PUBLIC_*` values are
+inlined into the bundle at build time, not read at runtime, so editing
+`apps/mobile/.env` does nothing until Metro is restarted — and `r` is not
+enough. Stop it and `npx expo start --dev-client --clear`. The symptom is
+`supabase.ts` throwing about a missing URL from a file that plainly has one.
 
 **A split React version breaks something unrelated.** This bit us once and the
 symptom was nowhere near the cause. The web app pinned `react@19.2.8` while
@@ -125,27 +136,23 @@ Highlights that catch people out:
 
 ## Next
 
-**Publishing.** It is the last piece of the loop and everything visible is
-waiting on it: the public page, the link, decision 37's stub. The ordered task
-list is in [`todo.md`](todo.md); decision 43 has the write shape, and the DDL for
-it has already been run against the live schema.
+**The public page.** It is the only piece of the loop left: the app hands out a
+`realrex.app` link and nothing serves it. `apps/web` is still the Next.js
+scaffold and decision 26 says it is rebuilt in Astro on Cloudflare, rendered on
+demand behind a cache (32).
 
-Three things block it, in this order:
+Two things it needs that do not exist yet:
 
-1. **Real UUIDs.** `src/id.ts` is still a `Date.now()` + counter stand-in, and
-   the schema's `client_ref` is a `uuid` — the column that makes a re-published
-   list upsert rather than duplicate. One file, one edit, and it is the cheapest
-   of the three.
-2. **`linkIdentity()` must be verified.** Decision 29 rests on it preserving the
-   user id. `scripts/auth-link-test.mjs` settles it and **has never been run.**
-   If linking mints a new id, every URL already sent dies at the moment we ask
-   someone to sign in — so this is a question to answer before building on the
-   answer, not after.
-3. **`get_list_by_slug()` does not exist.** `anon` has no policy on any table
-   (decision 22), so a published list is currently readable only by its owner.
-   It lands with the web app.
-
-Then the Astro rewrite of `apps/web`, which is what a recipient actually sees.
+1. **`get_list_by_slug()`**, the one function `anon` may execute (decision 22).
+   It is also **the most dangerous object in the system** — `security definer`,
+   reachable by anyone on the internet, and holding the privileges to read every
+   list in the database. Exact slug match, `published_at is not null`, an
+   explicit column list that never includes `user_id`, and the CI guard from
+   todo section 2 that keeps it the only one.
+2. **The headers from decision 48.** `X-Robots-Tag: noindex, nofollow` and
+   `Referrer-Policy: no-referrer`, and deliberately no `Disallow` on the list
+   route — a blocked crawler never reads the noindex, which is how Claude's and
+   ChatGPT's shared pages ended up in Google.
 
 **Two things the UI is still working around**, both now unblocked by storage:
 the spot questions can write through on every keystroke, which lets the
@@ -154,13 +161,22 @@ and competes with the swipe.
 
 ## Known loose ends
 
-- **Nothing has been deployed.** No Vercel project, no Supabase project beyond
-  the hand-built schema. **Turn the Supabase Spend Cap on when the project is
-  created** — see [`monetisation.md`](monetisation.md).
-- **`linkIdentity()` is unverified** and decision 29 rests on it.
-  `scripts/auth-link-test.mjs` needs a running stack.
-- **Spot and list ids are `tmp-<base36>`**, not UUIDs. Harmless until publish,
-  then not — see Next.
+- **Nothing is deployed.** The Supabase project is live and the app talks to it;
+  there is no Vercel or Cloudflare project, and the URL the app hands out has
+  nothing behind it. **Turn the Supabase Spend Cap on** — see
+  [`monetisation.md`](monetisation.md).
+- **Anonymous sign-ins had to be enabled by hand** in Authentication → Sign In /
+  Providers. They are also a spam vector: anyone with the bundled publishable
+  key can mint users and lists. The `limits` circuit breaker is empty by design
+  and should be decided before launch.
+- **`linkIdentity()` is unverified** and decision 29 rests on it. It stopped
+  being urgent — nothing links an identity until Apple sign-in exists — but it
+  must be answered before the first person is asked to sign in, because the
+  answer decides whether URLs already sent survive it.
+  `scripts/auth-link-test.mjs` needs a running stack, and it is stale: it calls
+  `publish_list` and selects from `lists`, neither of which exists.
+- **Spot and list ids are not UUIDs**, and no longer need to be: `client_ref` is
+  a `text` column, so the device's own ids go up as they are.
 - **`place_ref` / `place_ref_type` are outdated** but still live in `Spot`, in
   `isSame()`, in `maps-link.ts` and in decisions 23 and 30. The database does not
   have them.
@@ -170,7 +186,8 @@ and competes with the swipe.
   and Done both leave. It advertises an exit on the one screen we most want
   answered. Raised, not decided.
 - **There is no destructive colour in the tokens.** The slab behind a swiped row
-  borrows `textPrimary`. A real role belongs there before release.
+  borrows `textPrimary`, and the only red in the app comes from native alerts,
+  where the OS supplies it. A real role may never be needed.
 - **`SHORT_NOTE_MAX` is 80** and has never been chosen by anyone. It stays a
   client convention in `packages/shared/src/tokens.ts`; Charley ruled out making
   it a database constraint.
