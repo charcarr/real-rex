@@ -47,6 +47,10 @@ export default function HomeRoute() {
       />
 
       <PublishSheet
+        // Keyed so the sheet's own state -- mid-send, just-copied -- starts
+        // fresh every time it is raised, without an effect reaching in to
+        // clear it.
+        key={publishing ?? 'none'}
         visible={sending !== null}
         list={sending}
         state={sending ? publishState(sending, spots) : 'draft'}
