@@ -9,6 +9,7 @@ import {
   fontSize,
   fontWeight,
   letterSpacing,
+  radius,
   space,
   type ColorScheme,
 } from '@real-rex/shared';
@@ -21,6 +22,7 @@ import { SwipeRow } from '../../../src/components/SwipeRow';
 import {
   addSpot,
   availableSpots,
+  publishState,
   removeAt,
   resolveAll,
   type ResolvedItem,
@@ -97,6 +99,17 @@ export default function ListRoute() {
             {list.title.trim() === '' ? 'Untitled list' : list.title}
           </Text>
         </Pressable>
+
+        {/* A statement, not a control (decision 45). Neutral rather than
+            amber -- 25 says no palette expansion, and green would read as good
+            news. Acting on it happens in the sheet, on home; this page still
+            does nothing but hold the list. */}
+        {publishState(list, spots) === 'edited' ? (
+          <View style={styles.markRow}>
+            <View style={styles.dot} />
+            <Text style={styles.mark}>Edits not yet published</Text>
+          </View>
+        ) : null}
 
         {list.place ? (
           <ListMap place={list.place} count={items.length} onPressPlace={() => edit(2)} />
@@ -379,6 +392,21 @@ const makeStyles = (theme: ColorScheme) =>
       letterSpacing: letterSpacing.tightest,
       color: theme.textPrimary,
     },
+
+    markRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.sm,
+      marginTop: space.md + 2,
+    },
+    dot: {
+      width: 7,
+      height: 7,
+      borderRadius: radius.full,
+      borderWidth: 1.5,
+      borderColor: theme.textMuted,
+    },
+    mark: { fontSize: fontSize.base, color: theme.textSecondary },
 
     rows: { marginTop: space.xl, borderTopWidth: 1, borderTopColor: theme.border },
     row: { borderBottomWidth: 1, borderBottomColor: theme.border },
