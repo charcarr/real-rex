@@ -44,6 +44,13 @@ export interface ListItem {
   longNote: string | null;
 }
 
+/** What the server says when a list goes live: the slug its trigger minted, and
+ *  when. Everything else about a publication the device works out for itself. */
+export interface RemotePublication {
+  slug: string;
+  publishedAt: string;
+}
+
 /** What was actually sent, the last time this list was published. */
 export interface Publication {
   slug: string;
@@ -294,50 +301,29 @@ export const PUBLIC_BASE_URL = process.env.EXPO_PUBLIC_WEB_URL ?? 'https://abc.c
 export const publicUrl = (slug: string): string => `${PUBLIC_BASE_URL}/l/${slug}`;
 
 /**
- * Stands in for the database's `build_slug()` until publishing is real.
- *
- * Deliberately the same shape -- a folded title and twelve hex characters --
- * so the link on screen now is the link that will be on screen later. This is
- * the one place the device copies a rule that belongs to Postgres, and it goes
- * away the moment an insert answers with the real one.
- */
-function stubSlug(title: string): string {
-  const folded = title
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .slice(0, 60)
-    .replace(/^-+|-+$/g, '');
-
-  const hex = Array.from({ length: 12 }, () => Math.floor(Math.random() * 16).toString(16)).join(
-    '',
-  );
-
-  return `${folded === '' ? 'list' : folded}-${hex}`;
-}
-
-/**
  * Put the list out there, as of now.
  *
- * The slug is minted once and kept forever after -- through edits, through
- * renames, and through unpublishing (decision 46). `publishedAt` means when the
- * version that is live now went up, so publishing edits moves it: what a reader
- * is looking at is the thing worth dating, and it is what the sheet needs in
- * order to say how old the live page is.
+ * Records what the server confirmed, and nothing it did not: the slug and the
+ * date both come back from the write. The slug is minted once, by a trigger,
+ * and kept forever after -- through edits, through renames, and through
+ * unpublishing (decision 46). `publishedAt` dates the version that is live now
+ * rather than the first one, which is what the sheet needs in order to say how
+ * old the live page is.
  *
- * The fingerprint is taken here, from the same library the page was rendered
+ * The fingerprint is taken here, from the same library the rows were built
  * from, which is what makes "edited" honest afterwards.
  */
-export function markPublished(list: List, library: readonly Spot[]): List {
-  const slug = list.published?.slug ?? stubSlug(list.title);
-
+export function markPublished(
+  list: List,
+  library: readonly Spot[],
+  remote: RemotePublication,
+): List {
   return touch({
     ...list,
     published: {
-      slug,
-      url: publicUrl(slug),
-      publishedAt: now(),
+      slug: remote.slug,
+      url: publicUrl(remote.slug),
+      publishedAt: remote.publishedAt,
       fingerprint: fingerprint(list, library),
     },
   });
