@@ -39,8 +39,9 @@ import { useTheme } from '../theme';
  *
  * There is no identity question on it yet. Decision 29 says publishing is where
  * the sign-in choice belongs, but Apple sign-in does not exist, so today every
- * list is published anonymously and the sheet says what that means rather than
- * asking about it. The choice lands in the same place when it arrives.
+ * list is published anonymously and the sheet stays quiet about it -- what it
+ * costs you to be anonymous is only worth saying next to the alternative. Both
+ * the choice and the line explaining it land here when sign-in arrives.
  */
 
 type Props = {
@@ -157,7 +158,7 @@ export function PublishSheet({
               <Text style={styles.caption}>
                 {published
                   ? 'It goes back up at the same link you sent before.'
-                  : 'Anyone with the link can open it. This device is the only way to edit or delete it.'}
+                  : 'Anyone with the link can open it.'}
               </Text>
             </>
           ) : (
