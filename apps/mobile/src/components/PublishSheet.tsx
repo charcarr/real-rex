@@ -222,8 +222,10 @@ export function PublishSheet({
                     : 'Anyone with the link can open it.'}
               </Text>
 
-              <Delete
+              <Outline
+                label="Delete list"
                 busy={busy === 'delete'}
+                muted
                 onPress={confirmDelete}
                 theme={theme}
                 styles={styles}
@@ -306,8 +308,10 @@ export function PublishSheet({
                 styles={styles}
               />
 
-              <Delete
+              <Outline
+                label="Delete list"
                 busy={busy === 'delete'}
+                muted
                 onPress={confirmDelete}
                 theme={theme}
                 styles={styles}
@@ -391,36 +395,6 @@ function Outline({
         <Text style={[styles.outlineLabel, muted && styles.outlineLabelMuted]}>{label}</Text>
       )}
     </Pressable>
-  );
-}
-
-/**
- * Below a hairline and in muted type, because it is a different kind of thing
- * from the buttons above it -- not smaller, and not discouraged, just plainly
- * not one of the ways you manage a list that you are keeping.
- */
-function Delete({
-  busy,
-  onPress,
-  theme,
-  styles,
-}: {
-  busy: boolean;
-  onPress: () => void;
-  theme: ColorScheme;
-  styles: ReturnType<typeof makeStyles>;
-}) {
-  return (
-    <View style={styles.deleteWrap}>
-      <Outline
-        label="Delete list"
-        busy={busy}
-        muted
-        onPress={onPress}
-        theme={theme}
-        styles={styles}
-      />
-    </View>
   );
 }
 
@@ -518,6 +492,9 @@ const makeStyles = (theme: ColorScheme) =>
       letterSpacing: letterSpacing.tight,
       color: theme.textPrimary,
     },
+    /** The only thing separating Delete from the buttons above it. Not smaller,
+     *  not hidden -- just plainly not one of the ways you manage a list you are
+     *  keeping. */
     outlineLabelMuted: { color: theme.textSecondary },
 
     linkCard: {
@@ -547,15 +524,6 @@ const makeStyles = (theme: ColorScheme) =>
       backgroundColor: theme.accent,
     },
     copyLabel: { fontSize: fontSize.sm + 1, fontWeight: fontWeight.semibold, color: theme.surface },
-
-    /** The hairline is the whole signal: what is above it manages a list you
-     *  are keeping, what is below it does not. */
-    deleteWrap: {
-      marginTop: space.xl - 2,
-      paddingTop: space.md,
-      borderTopWidth: 1,
-      borderTopColor: theme.border,
-    },
 
     failure: {
       marginTop: space.md,

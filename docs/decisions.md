@@ -1182,8 +1182,10 @@ not yet published" under the list's headline, not tappable. Neutral rather than
 amber, because 25 says no palette expansion and green would read as good news.
 The list page still does nothing but hold the list.
 
-**Delete sits under Unpublish**, below a hairline and in muted type. 46 leans on
-delete being the permanent one — unpublish keeps the link precisely because
+**Delete sits under Unpublish**, in muted type and with nothing drawn between
+them. A rule was tried and cut: it made the pair look like a warning label when
+the point is the opposite — these are two ordinary things you can do, and the
+words say which is which. 46 leans on delete being the permanent one — unpublish keeps the link precisely because
 there is a door that closes — and putting the two one above the other is what
 makes that difference legible. Placed apart, both would simply read as "the
 destructive one". It appears on drafts too, since otherwise there is no way to
