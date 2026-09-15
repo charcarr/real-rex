@@ -231,8 +231,14 @@ const statusLine = (list: ListSummary): string => {
   const place = list.place?.trim();
 
   const parts = place ? [place, spots] : [spots];
-  if (list.state === 'published') parts.push('sent');
-  if (list.state === 'edited') parts.push('edits not yet published');
+  // Sentence case, both of them: these are statements about the list, not tags
+  // stuck on it, and a lower-case fragment after a middot reads as debug output.
+  //
+  // "Public" rather than "Sent" because that is what is true right now --
+  // sending is something you did once, being public is the state the list is
+  // in, and it is the state the row is reporting.
+  if (list.state === 'published') parts.push('Public');
+  if (list.state === 'edited') parts.push('Edits not yet published');
 
   return parts.join(' · ');
 };
