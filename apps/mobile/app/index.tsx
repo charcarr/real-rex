@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { AddSpotsSheet } from '../src/components/AddSpotsSheet';
 import { PublishSheet } from '../src/components/PublishSheet';
 import { markPublished, publishState, unpublish } from '../src/lists';
-import { publishList, unpublishList } from '../src/publish';
+import { deleteList, publishList, unpublishList } from '../src/publish';
 import { Home, type ListSummary } from '../src/screens/Home';
 import { useStore } from '../src/store';
 
@@ -19,7 +19,7 @@ import { useStore } from '../src/store';
  * screens need the same two collections.
  */
 export default function HomeRoute() {
-  const { spots, lists, locating, capture, updateList } = useStore();
+  const { spots, lists, locating, capture, updateList, removeList } = useStore();
   const [pasting, setPasting] = useState(false);
   /** The list whose publish sheet is up, if any. Held by id rather than by
    *  value so the sheet re-reads the store after every write and shows what
@@ -74,6 +74,15 @@ export default function HomeRoute() {
 
           await unpublishList(sending);
           updateList(unpublish(sending));
+        }}
+        onDelete={async () => {
+          if (!sending) return;
+
+          // A list that was never published has no row to delete and never
+          // minted a user -- and deleting a local draft must not create an
+          // account (decision 29).
+          if (sending.published) await deleteList(sending);
+          removeList(sending.id);
         }}
         onClose={() => setPublishing(null)}
       />

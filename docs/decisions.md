@@ -1157,9 +1157,9 @@ thought, and the short ones keep the bar from being a first date.
 > central action to be decided on purpose rather than inherited.
 
 **Decision.** One sheet does everything: send, copy, share, publish edits,
-unpublish. It is raised from the row's trailing icon on home — a green arrow on
-a draft, the link icon on a sent list — and dismissed back to it. No send
-screen, and still no publish button on the list page.
+unpublish, delete. It is raised from the row's trailing icon on home — a green
+arrow on a draft, the link icon on a sent list — and dismissed back to it. No
+send screen, and still no publish button on the list page.
 
 **Why a sheet.** It is already the app's vocabulary: `AddSpotsSheet` and
 `SpotPicker` are both sheets, and 38's rule governs moments that ask for
@@ -1181,6 +1181,14 @@ where the one red in this app comes from, supplied by the OS for free.
 not yet published" under the list's headline, not tappable. Neutral rather than
 amber, because 25 says no palette expansion and green would read as good news.
 The list page still does nothing but hold the list.
+
+**Delete sits under Unpublish**, below a hairline and in muted type. 46 leans on
+delete being the permanent one — unpublish keeps the link precisely because
+there is a door that closes — and putting the two one above the other is what
+makes that difference legible. Placed apart, both would simply read as "the
+destructive one". It appears on drafts too, since otherwise there is no way to
+be rid of a list you never sent, and deleting one of those touches no network at
+all: a local draft must not mint an account (decision 29).
 
 **`expo-clipboard` goes in**, deferred once by 37. The link is copied when it is
 minted and the button stays for later; Share opens the system sheet, which is

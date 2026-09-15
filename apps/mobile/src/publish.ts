@@ -202,3 +202,21 @@ export async function unpublishList(list: List): Promise<void> {
     supabase().from('list').update({ published_at: null }).eq('client_ref', list.id),
   );
 }
+
+/**
+ * Delete the list, and with it the page.
+ *
+ * The permanent one (decision 46). Items cascade, the slug goes with the row,
+ * and the URL is dead for good -- which is what makes it safe for unpublishing
+ * to keep the link: the reversible action and the irreversible one are
+ * different actions rather than the same one with a warning on it.
+ *
+ * A list that was never published has no row here and never minted a user, so
+ * the caller does not reach this at all -- deleting a local draft should not
+ * create an account (decision 29).
+ */
+export async function deleteList(list: List): Promise<void> {
+  await ensureSession();
+
+  await run('delete', supabase().from('list').delete().eq('client_ref', list.id));
+}

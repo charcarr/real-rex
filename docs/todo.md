@@ -118,10 +118,10 @@ All of this is device-local until the publish step.
       stores a position — the array's order is the order.
 - [x] Per-list edits to a spot's copied fields. Overrides while composing,
       copies at publish (decision 35).
-- [ ] Publish: identity choice if needed, write the rows client-side
-      (decision 33), then hand the URL to the share sheet. **Stubbed** — the
-      three states and the fingerprint are real, the URL is a placeholder and
-      the screen says so (decision 37).
+- [x] Publish, unpublish and delete, from one sheet raised on home (decisions
+      45 and 46). Written client-side (33), against a schema proven by
+      `scripts/publish-smoke.mjs`. The identity choice is not asked yet — every
+      list publishes anonymously until Apple sign-in exists (29).
 
 ## 7. The public page
 

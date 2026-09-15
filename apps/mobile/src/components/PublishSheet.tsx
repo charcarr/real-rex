@@ -59,6 +59,8 @@ type Props = {
    *  down is a request too, and the app must never say a page is dark while it
    *  is still up. */
   onUnpublish: () => Promise<void>;
+  /** Off the server and off the device, for good. Rejects like the others. */
+  onDelete: () => Promise<void>;
   onClose: () => void;
 };
 
@@ -87,6 +89,7 @@ export function PublishSheet({
   count,
   onPublish,
   onUnpublish,
+  onDelete,
   onClose,
 }: Props) {
   const theme = useTheme();
@@ -95,7 +98,7 @@ export function PublishSheet({
   // All three reset on every opening, because the caller keys this component by
   // the list being published -- a "copied" line left over from last time would
   // be a lie about this one.
-  const [busy, setBusy] = useState<null | 'publish' | 'unpublish'>(null);
+  const [busy, setBusy] = useState<null | 'publish' | 'unpublish' | 'delete'>(null);
   const [copied, setCopied] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -111,7 +114,7 @@ export function PublishSheet({
    * (see `publish.ts`). What went wrong goes to the console instead, where it
    * is useful.
    */
-  const attempt = async (what: 'publish' | 'unpublish', work: () => Promise<void>) => {
+  const attempt = async (what: 'publish' | 'unpublish' | 'delete', work: () => Promise<void>) => {
     setFailed(false);
     setBusy(what);
     try {
@@ -160,6 +163,33 @@ export function PublishSheet({
       ],
     );
 
+  /**
+   * The other native alert. Unpublish and delete sit one above the other in the
+   * sheet precisely so the difference is legible -- one is a light switch, the
+   * other is demolition -- and the wording is where that difference is spelled
+   * out rather than implied.
+   */
+  const confirmDelete = () =>
+    Alert.alert(
+      'Delete this list?',
+      published
+        ? 'The link stops working for everyone you sent it to, and the list goes from this phone. This cannot be undone.'
+        : 'The list goes from this phone. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () =>
+            void attempt('delete', async () => {
+              await onDelete();
+              // Nothing left to be open about.
+              onClose();
+            }),
+        },
+      ],
+    );
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.backdrop}>
@@ -192,6 +222,12 @@ export function PublishSheet({
                     : 'Anyone with the link can open it.'}
               </Text>
 
+              <Delete
+                busy={busy === 'delete'}
+                onPress={confirmDelete}
+                theme={theme}
+                styles={styles}
+              />
               <Failure shown={failed} styles={styles} />
             </>
           ) : (
@@ -270,6 +306,12 @@ export function PublishSheet({
                 styles={styles}
               />
 
+              <Delete
+                busy={busy === 'delete'}
+                onPress={confirmDelete}
+                theme={theme}
+                styles={styles}
+              />
               <Failure shown={failed} styles={styles} />
             </>
           )}
@@ -322,12 +364,14 @@ function Primary({
 function Outline({
   label,
   busy = false,
+  muted = false,
   onPress,
   theme,
   styles,
 }: {
   label: string;
   busy?: boolean;
+  muted?: boolean;
   onPress: () => void;
   theme?: ColorScheme;
   styles: ReturnType<typeof makeStyles>;
@@ -344,9 +388,39 @@ function Outline({
       {busy ? (
         <ActivityIndicator color={theme?.textSecondary} />
       ) : (
-        <Text style={styles.outlineLabel}>{label}</Text>
+        <Text style={[styles.outlineLabel, muted && styles.outlineLabelMuted]}>{label}</Text>
       )}
     </Pressable>
+  );
+}
+
+/**
+ * Below a hairline and in muted type, because it is a different kind of thing
+ * from the buttons above it -- not smaller, and not discouraged, just plainly
+ * not one of the ways you manage a list that you are keeping.
+ */
+function Delete({
+  busy,
+  onPress,
+  theme,
+  styles,
+}: {
+  busy: boolean;
+  onPress: () => void;
+  theme: ColorScheme;
+  styles: ReturnType<typeof makeStyles>;
+}) {
+  return (
+    <View style={styles.deleteWrap}>
+      <Outline
+        label="Delete list"
+        busy={busy}
+        muted
+        onPress={onPress}
+        theme={theme}
+        styles={styles}
+      />
+    </View>
   );
 }
 
@@ -444,6 +518,7 @@ const makeStyles = (theme: ColorScheme) =>
       letterSpacing: letterSpacing.tight,
       color: theme.textPrimary,
     },
+    outlineLabelMuted: { color: theme.textSecondary },
 
     linkCard: {
       flexDirection: 'row',
@@ -472,6 +547,15 @@ const makeStyles = (theme: ColorScheme) =>
       backgroundColor: theme.accent,
     },
     copyLabel: { fontSize: fontSize.sm + 1, fontWeight: fontWeight.semibold, color: theme.surface },
+
+    /** The hairline is the whole signal: what is above it manages a list you
+     *  are keeping, what is below it does not. */
+    deleteWrap: {
+      marginTop: space.xl - 2,
+      paddingTop: space.md,
+      borderTopWidth: 1,
+      borderTopColor: theme.border,
+    },
 
     failure: {
       marginTop: space.md,
