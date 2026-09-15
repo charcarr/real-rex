@@ -21,7 +21,7 @@ import {
 } from '@real-rex/shared';
 
 import { copyToClipboard } from '../clipboard';
-import type { List, PublishState } from '../lists';
+import { canPublish, type List, type PublishState } from '../lists';
 import { useTheme } from '../theme';
 
 /**
@@ -55,7 +55,10 @@ type Props = {
    *  stubbed one, later the requests -- so nothing here changes when it
    *  becomes real. */
   onPublish: () => Promise<string | null>;
-  onUnpublish: () => void;
+  /** Rejects when the request failed, the same as onPublish. Taking the page
+   *  down is a request too, and the app must never say a page is dark while it
+   *  is still up. */
+  onUnpublish: () => Promise<void>;
   onClose: () => void;
 };
 
@@ -89,11 +92,12 @@ export function PublishSheet({
   const theme = useTheme();
   const styles = makeStyles(theme);
 
-  // Both reset on every opening, because the caller keys this component by the
-  // list being published -- a "copied" line left over from last time would be a
-  // lie about this one.
-  const [sending, setSending] = useState(false);
+  // All three reset on every opening, because the caller keys this component by
+  // the list being published -- a "copied" line left over from last time would
+  // be a lie about this one.
+  const [busy, setBusy] = useState<null | 'publish' | 'unpublish'>(null);
   const [copied, setCopied] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   if (!list) return null;
 
@@ -101,9 +105,26 @@ export function PublishSheet({
   const url = published?.url ?? null;
   const spots = `${count} ${count === 1 ? 'spot' : 'spots'}`;
 
-  const send = async () => {
-    setSending(true);
+  /**
+   * One failure message for every way this can fail, because "try again" is the
+   * only thing anyone can do about any of them -- and it is always safe to do
+   * (see `publish.ts`). What went wrong goes to the console instead, where it
+   * is useful.
+   */
+  const attempt = async (what: 'publish' | 'unpublish', work: () => Promise<void>) => {
+    setFailed(false);
+    setBusy(what);
     try {
+      await work();
+    } catch {
+      setFailed(true);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const send = () =>
+    attempt('publish', async () => {
       const link = await onPublish();
       // Copying on the way out is the whole point of the screen: the next
       // thing anyone does is paste it into a chat.
@@ -111,10 +132,7 @@ export function PublishSheet({
         await copyToClipboard(link);
         setCopied(true);
       }
-    } finally {
-      setSending(false);
-    }
-  };
+    });
 
   const copy = async () => {
     if (!url) return;
@@ -134,7 +152,11 @@ export function PublishSheet({
       'Anyone with the link will see nothing until you publish it again. The link itself is kept.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Unpublish', style: 'destructive', onPress: onUnpublish },
+        {
+          text: 'Unpublish',
+          style: 'destructive',
+          onPress: () => void attempt('unpublish', onUnpublish),
+        },
       ],
     );
 
@@ -153,13 +175,24 @@ export function PublishSheet({
                 {list.title.trim() === '' ? 'Untitled list' : list.title} &middot; {spots}
               </Text>
 
-              <Primary label="Send" busy={sending} onPress={send} theme={theme} styles={styles} />
+              <Primary
+                label="Send"
+                busy={busy === 'publish'}
+                disabled={!canPublish(list)}
+                onPress={send}
+                theme={theme}
+                styles={styles}
+              />
 
               <Text style={styles.caption}>
-                {published
-                  ? 'It goes back up at the same link you sent before.'
-                  : 'Anyone with the link can open it.'}
+                {!canPublish(list)
+                  ? 'Add a spot before you send this.'
+                  : published
+                    ? 'It goes back up at the same link you sent before.'
+                    : 'Anyone with the link can open it.'}
               </Text>
+
+              <Failure shown={failed} styles={styles} />
             </>
           ) : (
             <>
@@ -183,7 +216,7 @@ export function PublishSheet({
                 <>
                   <Primary
                     label="Publish edits"
-                    busy={sending}
+                    busy={busy === 'publish'}
                     onPress={send}
                     theme={theme}
                     styles={styles}
@@ -229,7 +262,15 @@ export function PublishSheet({
               ) : null}
 
               <Outline label="Share" onPress={share} styles={styles} />
-              <Outline label="Unpublish" onPress={confirmUnpublish} styles={styles} />
+              <Outline
+                label="Unpublish"
+                busy={busy === 'unpublish'}
+                onPress={confirmUnpublish}
+                theme={theme}
+                styles={styles}
+              />
+
+              <Failure shown={failed} styles={styles} />
             </>
           )}
         </View>
@@ -243,24 +284,29 @@ export function PublishSheet({
 function Primary({
   label,
   busy,
+  disabled = false,
   onPress,
   theme,
   styles,
 }: {
   label: string;
   busy: boolean;
+  disabled?: boolean;
   onPress: () => void;
   theme: ColorScheme;
   styles: ReturnType<typeof makeStyles>;
 }) {
   return (
     <Pressable
-      onPress={busy ? undefined : onPress}
-      disabled={busy}
+      onPress={busy || disabled ? undefined : onPress}
+      disabled={busy || disabled}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ busy }}
-      style={({ pressed }) => [styles.primary, (pressed || busy) && styles.primaryQuiet]}
+      style={({ pressed }) => [
+        styles.primary,
+        (pressed || busy || disabled) && styles.primaryQuiet,
+      ]}
     >
       {busy ? (
         <ActivityIndicator color={theme.surface} />
@@ -275,23 +321,46 @@ function Primary({
  *  there is no reason to discourage unpublishing, so it is not made small. */
 function Outline({
   label,
+  busy = false,
   onPress,
+  theme,
   styles,
 }: {
   label: string;
+  busy?: boolean;
   onPress: () => void;
+  theme?: ColorScheme;
   styles: ReturnType<typeof makeStyles>;
 }) {
   return (
     <Pressable
-      onPress={onPress}
+      onPress={busy ? undefined : onPress}
+      disabled={busy}
       accessibilityRole="button"
       accessibilityLabel={label}
+      accessibilityState={{ busy }}
       style={({ pressed }) => [styles.outline, pressed && styles.pressed]}
     >
-      <Text style={styles.outlineLabel}>{label}</Text>
+      {busy ? (
+        <ActivityIndicator color={theme?.textSecondary} />
+      ) : (
+        <Text style={styles.outlineLabel}>{label}</Text>
+      )}
     </Pressable>
   );
+}
+
+/**
+ * The whole error surface, in one line.
+ *
+ * Offline, refused, timed out, a bug in our own SQL -- they all end here,
+ * because retrying is the only move any of them leaves you, and retrying is
+ * always safe. Muted rather than red: there is no red in this palette, and
+ * nothing has been lost.
+ */
+function Failure({ shown, styles }: { shown: boolean; styles: ReturnType<typeof makeStyles> }) {
+  if (!shown) return null;
+  return <Text style={styles.failure}>That didn&rsquo;t go through. Try again?</Text>;
 }
 
 const makeStyles = (theme: ColorScheme) =>
@@ -403,6 +472,14 @@ const makeStyles = (theme: ColorScheme) =>
       backgroundColor: theme.accent,
     },
     copyLabel: { fontSize: fontSize.sm + 1, fontWeight: fontWeight.semibold, color: theme.surface },
+
+    failure: {
+      marginTop: space.md,
+      paddingHorizontal: space.xs,
+      fontSize: fontSize.base,
+      lineHeight: 18,
+      color: theme.textSecondary,
+    },
 
     copiedRow: {
       flexDirection: 'row',
