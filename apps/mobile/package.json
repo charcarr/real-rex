@@ -13,6 +13,7 @@
     "test": "node --disable-warning=ExperimentalWarning --experimental-strip-types --test src/*.test.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.116.0",
     "expo": "~57.0.21",
     "expo-clipboard": "~57.0.2",
     "expo-constants": "~57.0.17",
